@@ -1,0 +1,19 @@
+{
+  "name": "discord-lyrics-bot",
+  "version": "1.0.0",
+  "description": "Discord Bot untuk mencari lirik lagu",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "genius-lyrics": "^4.4.7",
+    "@supabase/supabase-js": "^2.47.12"
+  }
+}

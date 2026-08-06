@@ -25,12 +25,22 @@ function fetchJson(url) {
   });
 }
 
+function cleanLyrics(text) {
+  return text
+    .replace(/\[\d{2}:\d{2}[\.\:]\d{2,3}\]\s*/g, '')
+    .replace(/\d+ Contributors?/g, '')
+    .replace(/Translations[^\n]*/g, '')
+    .replace(/^[\d]+\s+/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 async function tryGeniusLocal(query) {
   try {
     const searches = await geniusClient.songs.search(query);
     if (!searches.length) return null;
     const song = searches[0];
-    const lyrics = await song.lyrics();
+    const lyrics = cleanLyrics(await song.lyrics());
     if (!lyrics || lyrics.length < 20) return null;
     return { lyrics, title: song.title, artist: song.artist.name, thumbnail: song.thumbnail, url: song.url, source: 'Genius' };
   } catch (e) {
@@ -50,8 +60,8 @@ async function tryLrclib(query) {
     }
     const results = await fetchJson(url);
     for (const r of results) {
-      if (r.plainLyrics) return { lyrics: r.plainLyrics, title: r.trackName, artist: r.artistName, source: 'lrclib' };
-      if (r.syncedLyrics) return { lyrics: r.syncedLyrics.replace(/\[\d{2}:\d{2}\.\d{2,3}\]\s*/g, '').trim(), title: r.trackName, artist: r.artistName, source: 'lrclib' };
+      if (r.plainLyrics) return { lyrics: cleanLyrics(r.plainLyrics), title: r.trackName, artist: r.artistName, source: 'lrclib' };
+      if (r.syncedLyrics) return { lyrics: cleanLyrics(r.syncedLyrics), title: r.trackName, artist: r.artistName, source: 'lrclib' };
     }
   } catch (e) {
     console.log('[DEBUG] lrclib gagal: ' + e.message);

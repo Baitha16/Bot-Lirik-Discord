@@ -107,7 +107,7 @@ client.on('messageCreate', async (message) => {
 
     await loading.edit({ embeds: [embed] });
 
-    await supabase.from('lyrics_history').insert({
+    const { error } = await supabase.from('lyrics_history').insert({
       user_id: message.author.id,
       user_tag: message.author.tag,
       song_title: result.title,
@@ -115,6 +115,20 @@ client.on('messageCreate', async (message) => {
       guild_id: message.guild?.id,
       guild_name: message.guild?.name,
     });
+
+    if (error) console.error('Supabase error:', error.message);
+
+    const { data: resetData } = await supabase.from('reset_log').select('reset_count').order('id', { ascending: false }).limit(1).single();
+    const { count } = await supabase.from('lyrics_history').select('*', { count: 'exact', head: true });
+
+    const resetInfo = resetData ? resetData.reset_count : 0;
+    const recordCount = count || 0;
+
+    embed.setFooter({
+      text: `Diminta oleh ${message.author.tag} | Sumber: ${result.source} | Log: ${recordCount}/100 | Reset: ${resetInfo}x`
+    });
+
+    await loading.edit({ embeds: [embed] });
 
   } catch (err) {
     console.error('ERROR:', err.message);

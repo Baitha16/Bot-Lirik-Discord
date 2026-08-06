@@ -3,6 +3,7 @@ const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const genius = require('genius-lyrics');
 const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
+const http = require('http');
 
 const client = new Client({
   intents: [
@@ -137,3 +138,13 @@ client.on('messageCreate', async (message) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Lyrics Bot is running!');
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log('HTTP server running on port ' + PORT);
+});

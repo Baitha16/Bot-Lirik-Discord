@@ -8,17 +8,13 @@ Bot Discord untuk mencari lirik lagu. Menggunakan **Genius API** (lirik lengkap)
 - Hybrid: Genius → lrclib.net (otomatis fallback)
 - Timestamp lirik otomatis dihapus
 - Embed respons yang rapi dengan thumbnail & link
-- Riwayat pencarian tersimpan di Supabase
-- Auto-reset log setiap 100 record
-- Footer menampilkan jumlah log & berapa kali reset
 
 ## Tech Stack
 
 - [Discord.js](https://discord.js.org/) v14
 - [Genius Lyrics](https://genius.com/) API
 - [lrclib.net](https://lrclib.net/) API (fallback)
-- [Supabase](https://supabase.com/) (PostgreSQL)
-- [UptimeRobot](https://uptimerobot.com/) (keep alive)
+- [UptimeRobot](https://uptimerobot.com/) (keep alive untuk Replit)
 
 ## Command
 
@@ -60,23 +56,13 @@ Bot Discord untuk mencari lirik lagu. Menggunakan **Genius API** (lirik lengkap)
 5. Klik **Create API Client**
 6. Copy **Client Access Token**
 
-### 3. Setup Supabase
-
-1. Buka https://supabase.com → buat project baru
-2. Buka tab **SQL Editor** → jalankan isi `supabase-schema.sql`
-3. Jalankan isi `supabase-cron.sql` untuk auto-reset
-4. Aktifkan **pg_cron** di Settings → Database → Extensions
-5. Buka **Settings** → **API** → copy **Project URL** dan **anon key**
-
-### 4. Buat File `.env`
+### 3. Buat File `.env`
 
 Buat file `.env` di root project:
 
 ```
 DISCORD_TOKEN=your_discord_bot_token
 GENIUS_API_KEY=your_genius_api_key
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
 ```
 
 ## Cara Jalankan
@@ -99,27 +85,12 @@ SUPABASE_KEY=your_supabase_anon_key
 3. Tambah **Secrets** (Environment Variables):
    - `DISCORD_TOKEN`
    - `GENIUS_API_KEY`
-   - `SUPABASE_URL`
-   - `SUPABASE_KEY`
 4. Klik **Publish** → bot akan dapat URL
 5. Daftar https://uptimerobot.com
 6. Tambah monitor:
    - **Type:** HTTP(s)
    - **URL:** URL dari Replit
    - **Interval:** 5 minutes
-
-### Supabase Auto-Reset
-
-Bot otomatis reset log `lyrics_history` jika sudah 100 record:
-- Log counter muncul di footer embed
-- Reset count tersimpan di table `reset_log`
-- Cron job jalan setiap menit (via pg_cron)
-
-**Cek status:**
-```sql
-SELECT reset_count, last_reset_at, records_deleted
-FROM reset_log ORDER BY id DESC LIMIT 1;
-```
 
 ## Struktur Project
 
@@ -132,9 +103,6 @@ Bot-Lirik-Discord/
 ├── .gitignore
 ├── start.bat                 # Shortcut jalankan bot lokal
 ├── package.json
-├── ecosystem.config.js       # PM2 config
-├── supabase-schema.sql       # Schema database
-├── supabase-cron.sql         # Auto-reset cron
 └── README.md
 ```
 
@@ -143,4 +111,4 @@ Bot-Lirik-Discord/
 - [Discord.js](https://discord.js.org/)
 - [Genius](https://genius.com/)
 - [lrclib.net](https://lrclib.net/)
-- [Supabase](https://supabase.com/)
+- [UptimeRobot](https://uptimerobot.com/)

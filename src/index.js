@@ -1,7 +1,6 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const genius = require('genius-lyrics');
-const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 const http = require('http');
 
@@ -14,7 +13,6 @@ const client = new Client({
 });
 
 const geniusClient = new genius.Client(process.env.GENIUS_API_KEY);
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
@@ -105,29 +103,6 @@ client.on('messageCreate', async (message) => {
 
     if (result.thumbnail) embed.setThumbnail(result.thumbnail);
     if (result.url) embed.setURL(result.url);
-
-    await loading.edit({ embeds: [embed] });
-
-    const { error } = await supabase.from('lyrics_history').insert({
-      user_id: message.author.id,
-      user_tag: message.author.tag,
-      song_title: result.title,
-      artist: result.artist,
-      guild_id: message.guild?.id,
-      guild_name: message.guild?.name,
-    });
-
-    if (error) console.error('Supabase error:', error.message);
-
-    const { data: resetData } = await supabase.from('reset_log').select('reset_count').order('id', { ascending: false }).limit(1).single();
-    const { count } = await supabase.from('lyrics_history').select('*', { count: 'exact', head: true });
-
-    const resetInfo = resetData ? resetData.reset_count : 0;
-    const recordCount = count || 0;
-
-    embed.setFooter({
-      text: `Diminta oleh ${message.author.tag} | Sumber: ${result.source} | Log: ${recordCount}/100 | Reset: ${resetInfo}x`
-    });
 
     await loading.edit({ embeds: [embed] });
 

@@ -1,18 +1,19 @@
 # Discord Lyrics Bot 🎵
 
-Bot Discord untuk mencari lirik lagu, di-deploy di **Vercel serverless** menggunakan **HTTP interactions** (webhook). Menggunakan **Genius API** (lirik lengkap) dengan fallback ke **lrclib.net** (backup gratis).
+Bot Discord untuk mencari lirik lagu, di-deploy di **Vercel serverless** menggunakan **HTTP interactions** (webhook). Menggunakan **4 sumber lirik** dengan fallback otomatis.
 
 > Serverless artinya bot tidak butuh proses yang berjalan terus-menerus. Setiap command memicu serverless function via webhook Discord.
 
 ## Fitur
 
-- Command `/lirik <judul>` untuk mencari lirik
-- Command `/artist <nama>` untuk info artis & lagu terpopulernya
-- Command `/ping`, `/status`, `/help`
-- Hybrid: Genius → lrclib.net (otomatis fallback)
+- `/lirik <judul>` - Cari lirik lagu
+- `/lirik nowplaying` / `/lirik np` - Auto-detect lagu dari music bot (Jockie, Cloudy, Hydra, dll)
+- `/artist <nama>` - Info artis & lagu terpopulernya
+- `/ping`, `/status`, `/help`
+- **4 sumber lirik**: Genius → lrclib.net → lrcmux.dev → Better Lyrics (otomatis fallback)
 - Timestamp lirik otomatis dihapus
 - Embed respons yang rapi dengan thumbnail & link
-- Berjalan penuh di Vercel free tier (serverless)
+- Berjalan 24/7 di Vercel free tier (serverless + keep-alive cron)
 
 ## Command
 
@@ -20,17 +21,43 @@ Bot Discord untuk mencari lirik lagu, di-deploy di **Vercel serverless** menggun
 |---------|-----------|
 | `/lirik <judul>` | Cari lirik lagu |
 | `/lirik <judul> - <artis>` | Cari lirik spesifik |
+| `/lirik nowplaying` | Ambil lirik dari lagu yang sedang diputar di music bot |
+| `/lirik np` | Sama seperti nowplaying |
 | `/artist <nama>` | Info artis & lagu terpopulernya |
 | `/ping` | Cek latensi bot ke API Discord |
 | `/status` | Info status bot & sumber lirik |
 | `/help` | Tampilkan semua command |
+
+## Supported Music Bots
+
+Bot otomatis mendeteksi embed dari music bot berikut:
+
+| Bot | Status |
+|-----|--------|
+| Jockie Music (1-3) | ✅ |
+| Cloudy | ✅ |
+| Hydra | ✅ |
+| FlaviBot | ✅ |
+| LunaBot | ✅ |
+| Lara | ✅ |
+| Matchbox | ✅ |
+| Listen | ✅ |
+| FredBoat | ✅ |
+| Rythm | ✅ |
+| MEE6 | ✅ |
+| ProBot | ✅ |
+| SoundCloud | ✅ |
+| Soundify | ✅ |
+| Grobot | ✅ |
 
 ## Tech Stack
 
 - [Vercel](https://vercel.com/) Serverless Functions (Node.js)
 - Discord HTTP Interactions (webhook)
 - [Genius Lyrics](https://genius.com/) API
-- [lrclib.net](https://lrclib.net/) API (fallback)
+- [lrclib.net](https://lrclib.net/) API (fallback 1)
+- [lrcmux.dev](https://lrcmux.dev/) API (fallback 2)
+- [Better Lyrics](https://blyrics.vercel.app/) API (fallback 3)
 - [tweetnacl](https://www.npmjs.com/package/tweetnacl) (verifikasi signature Discord)
 
 ## Setup
@@ -92,7 +119,7 @@ Catatan:
 | `DISCORD_TOKEN` | Ya | Token bot Discord |
 | `DISCORD_PUBLIC_KEY` | Ya | Public Key bot (untuk verifikasi webhook) |
 | `CLIENT_ID` | Ya | Application ID bot |
-| `GENIUS_API_KEY` | Opsional | Tanpa ini, bot hanya pakai lrclib.net |
+| `GENIUS_API_KEY` | Opsional | Tanpa ini, bot hanya pakai lrclib/lrcmux/BetterLyrics |
 | `GUILD_ID` | Opsional | Isi untuk register command ke guild instan |
 
 ## Menjalankan Lokal (Development)
@@ -111,14 +138,15 @@ Server lokal akan jalan di `http://localhost:3000/api/interactions`. Untuk uji c
 ```
 Bot-Lirik-Discord/
 ├── api/
-│   └── interactions.js       # Serverless function utama (handle webhook Discord)
+│   ├── interactions.js       # Serverless function utama (handle webhook Discord)
+│   └── keep-alive.js         # Cron endpoint untuk keep-alive (anti-sleep)
 ├── scripts/
 │   └── register-commands.js  # Daftarkan slash commands ke Discord
 ├── src/
-│   ├── commands.js           # Definisi & handler command
-│   ├── lyrics.js             # Service lirik (Genius + lrclib) & cari artis
+│   ├── commands.js           # Definisi & handler command + music bot detection
+│   ├── lyrics.js             # Service lirik (4 sumber) & cari artis
 │   └── helpers.js            # Verifikasi signature, REST Discord, embed builder
-├── vercel.json               # Konfigurasi Vercel
+├── vercel.json               # Konfigurasi Vercel (cron keep-alive)
 ├── .env.example              # Template environment variables
 ├── .gitignore
 └── package.json
@@ -128,5 +156,7 @@ Bot-Lirik-Discord/
 
 - [Genius](https://genius.com/)
 - [lrclib.net](https://lrclib.net/)
+- [lrcmux.dev](https://lrcmux.dev/)
+- [Better Lyrics](https://blyrics.vercel.app/)
 - [Discord Developer Portal](https://discord.com/developers/applications)
 - [Vercel](https://vercel.com/)

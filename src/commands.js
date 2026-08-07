@@ -421,6 +421,7 @@ const commandList = [
           description: 'Bot untuk mencari lirik lagu, berjalan di Vercel serverless.',
           fields: [
             { name: '/lirik <judul>', value: 'Cari lirik lagu. Contoh: `/lirik Bohemian Rhapsody - Queen`', inline: false },
+            { name: '/lirik nowplaying', value: 'Ambil lirik dari lagu yang sedang diputar (fallback)', inline: false },
             { name: '/np', value: 'Ambil lirik dari lagu yang sedang diputar di music bot', inline: false },
             { name: '/nowplaying', value: 'Sama seperti /np', inline: false },
             { name: '/artist <nama>', value: 'Cari info artis & lagu terpopulernya. Contoh: `/artist Taylor Swift`', inline: false },

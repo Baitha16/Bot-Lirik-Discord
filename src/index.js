@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const genius = require('genius-lyrics');
 const https = require('https');
 const http = require('http');
@@ -13,6 +13,30 @@ const client = new Client({
 });
 
 const geniusClient = new genius.Client(process.env.GENIUS_API_KEY);
+
+const commands = [
+  new SlashCommandBuilder()
+    .setName('lirik')
+    .setDescription('Cari lirik lagu')
+    .addStringOption(option =>
+      option.setName('judul').setDescription('Judul lagu (atau: Judul - Artis)').setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Tampilkan semua command yang tersedia'),
+].map(cmd => cmd.toJSON());
+
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+
+(async () => {
+  try {
+    console.log('Registering slash commands...');
+    await rest.put(Routes.applicationCommands(client.user?.id || process.env.CLIENT_ID), { body: commands });
+    console.log('Slash commands registered!');
+  } catch (e) {
+    console.error('Register error:', e.message);
+  }
+})();
 
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
@@ -68,47 +92,69 @@ async function tryLrclib(query) {
   return null;
 }
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log('Bot online sebagai ' + client.user.tag);
-  client.user.setActivity('/lirik <judul lagu>', { type: 3 });
-});
-
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (!message.content.startsWith('/lirik')) return;
-
-  const query = message.content.slice(6).trim();
-  if (!query) return message.reply('Gunakan: /lirik <judul lagu>');
-
-  const loading = await message.reply('Mencari lirik...');
+  client.user.setActivity('/help | /lirik', { type: 3 });
 
   try {
-    let result = await tryGeniusLocal(query);
-    if (!result) {
-      console.log('[DEBUG] Genius gagal, coba lrclib...');
-      result = await tryLrclib(query);
-    }
+    console.log('Registering slash commands...');
+    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+    console.log('Slash commands registered!');
+  } catch (e) {
+    console.error('Register error:', e.message);
+  }
+});
 
-    if (!result) return loading.edit('Lirik tidak ditemukan.');
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
 
-    const truncated = result.lyrics.length > 4000 ? result.lyrics.substring(0, 4000) + '\n\n... (dipotong)' : result.lyrics;
-
+  if (interaction.commandName === 'help') {
     const embed = new EmbedBuilder()
       .setColor(0x1DB954)
-      .setTitle(result.title)
-      .setAuthor({ name: result.artist })
-      .setDescription(truncated)
-      .setFooter({ text: 'Diminta oleh ' + message.author.tag + ' | Sumber: ' + result.source })
+      .setTitle('🎵 Lyrics Bot - Commands')
+      .setDescription('Bot untuk mencari lirik lagu')
+      .addFields(
+        { name: '/lirik <judul>', value: 'Cari lirik lagu. Format: `/lirik Bohemian Rhapsody` atau `/lirik Bohemian Rhapsody - Queen`' },
+        { name: '/help', value: 'Tampilkan semua command' }
+      )
+      .setFooter({ text: 'Powered by Genius + lrclib.net' })
       .setTimestamp();
 
-    if (result.thumbnail) embed.setThumbnail(result.thumbnail);
-    if (result.url) embed.setURL(result.url);
+    return interaction.reply({ embeds: [embed] });
+  }
 
-    await loading.edit({ embeds: [embed] });
+  if (interaction.commandName === 'lirik') {
+    const query = interaction.options.getString('judul');
+    await interaction.deferReply();
 
-  } catch (err) {
-    console.error('ERROR:', err.message);
-    loading.edit('Terjadi error saat mencari lirik.');
+    try {
+      let result = await tryGeniusLocal(query);
+      if (!result) {
+        console.log('[DEBUG] Genius gagal, coba lrclib...');
+        result = await tryLrclib(query);
+      }
+
+      if (!result) return interaction.editReply('Lirik tidak ditemukan.');
+
+      const truncated = result.lyrics.length > 4000 ? result.lyrics.substring(0, 4000) + '\n\n... (dipotong)' : result.lyrics;
+
+      const embed = new EmbedBuilder()
+        .setColor(0x1DB954)
+        .setTitle(result.title)
+        .setAuthor({ name: result.artist })
+        .setDescription(truncated)
+        .setFooter({ text: 'Diminta oleh ' + interaction.user.tag + ' | Sumber: ' + result.source })
+        .setTimestamp();
+
+      if (result.thumbnail) embed.setThumbnail(result.thumbnail);
+      if (result.url) embed.setURL(result.url);
+
+      await interaction.editReply({ embeds: [embed] });
+
+    } catch (err) {
+      console.error('ERROR:', err.message);
+      interaction.editReply('Terjadi error saat mencari lirik.');
+    }
   }
 });
 

@@ -1,20 +1,18 @@
 # Discord Lyrics Bot 🎵
 
-Bot Discord untuk mencari lirik lagu. Menggunakan **Genius API** (lirik lengkap) dengan fallback ke **lrclib.net** (backup gratis).
+Bot Discord untuk mencari lirik lagu, di-deploy di **Vercel serverless** menggunakan **HTTP interactions** (webhook). Menggunakan **Genius API** (lirik lengkap) dengan fallback ke **lrclib.net** (backup gratis).
+
+> Serverless artinya bot tidak butuh proses yang berjalan terus-menerus. Setiap command memicu serverless function via webhook Discord.
 
 ## Fitur
 
-- Command `/lirik <judul lagu>` untuk mencari lirik
+- Command `/lirik <judul>` untuk mencari lirik
+- Command `/artist <nama>` untuk info artis & lagu terpopulernya
+- Command `/ping`, `/status`, `/help`
 - Hybrid: Genius → lrclib.net (otomatis fallback)
 - Timestamp lirik otomatis dihapus
 - Embed respons yang rapi dengan thumbnail & link
-
-## Tech Stack
-
-- [Discord.js](https://discord.js.org/) v14
-- [Genius Lyrics](https://genius.com/) API
-- [lrclib.net](https://lrclib.net/) API (fallback)
-- [UptimeRobot](https://uptimerobot.com/) (keep alive untuk Replit)
+- Berjalan penuh di Vercel free tier (serverless)
 
 ## Command
 
@@ -22,93 +20,113 @@ Bot Discord untuk mencari lirik lagu. Menggunakan **Genius API** (lirik lengkap)
 |---------|-----------|
 | `/lirik <judul>` | Cari lirik lagu |
 | `/lirik <judul> - <artis>` | Cari lirik spesifik |
+| `/artist <nama>` | Info artis & lagu terpopulernya |
+| `/ping` | Cek latensi bot ke API Discord |
+| `/status` | Info status bot & sumber lirik |
+| `/help` | Tampilkan semua command |
 
-**Contoh:**
-```
-/lirik Bohemian Rhapsody
-/lirik Bohemian Rhapsody - Queen
-```
+## Tech Stack
+
+- [Vercel](https://vercel.com/) Serverless Functions (Node.js)
+- Discord HTTP Interactions (webhook)
+- [Genius Lyrics](https://genius.com/) API
+- [lrclib.net](https://lrclib.net/) API (fallback)
+- [tweetnacl](https://www.npmjs.com/package/tweetnacl) (verifikasi signature Discord)
 
 ## Setup
 
-### 1. Buat Discord Bot
+### 1. Buat / siapkan Discord Bot
 
 1. Buka https://discord.com/developers/applications
 2. Klik **New Application** → beri nama → **Create**
-3. Buka tab **Bot** → klik **Reset Token** → copy token
-4. Aktifkan **Message Content Intent** di bawah
-5. Buka tab **OAuth2** → **URL Generator**
-6. Centang `bot`
-7. Centang permissions:
-   - Send Messages
-   - Embed Links
-   - Read Message History
-8. Copy URL → buka di browser → invite bot ke server
+3. Buka tab **Bot** → klik **Reset Token** → copy token (untuk `DISCORD_TOKEN`)
+4. Di tab **General Information**, copy **Application ID** (untuk `CLIENT_ID`) dan **Public Key** (untuk `DISCORD_PUBLIC_KEY`)
 
-### 2. Dapatkan Genius API Key
+### 2. Deploy ke Vercel
 
-1. Buka https://genius.com/api-clients
-2. Login / buat akun Genius
-3. Klik **New API Client**
-4. Isi:
-   - **App Name:** `Lyrics Bot`
-   - **App Website URL:** `https://github.com`
-5. Klik **Create API Client**
-6. Copy **Client Access Token**
+> Deploy dulu karena URL deployment dibutuhkan untuk mengisi **Interaction Endpoint URL**.
 
-### 3. Buat File `.env`
-
-Buat file `.env` di root project:
-
-```
-DISCORD_TOKEN=your_discord_bot_token
-GENIUS_API_KEY=your_genius_api_key
-```
-
-## Cara Jalankan
-
-### Lokal (Windows)
-
-1. Install Node.js dari https://nodejs.org
-2. Buka PowerShell:
-   ```powershell
-   cd "D:\Github\Bot Lirik Discord"
-   npm install
-   node src/index.js
-   ```
-3. Atau double-click **`start.bat`**
-
-### Replit (24/7)
-
-1. Login ke https://replit.com
-2. Import dari GitHub: `Baitha16/Bot-Lirik-Discord`
-3. Tambah **Secrets** (Environment Variables):
+1. Install [Vercel CLI](https://vercel.com/docs/cli) atau gunakan dashboard https://vercel.com
+2. Import repo ini ke Vercel (framework preset: **Other**)
+3. Tambahkan **Environment Variables** di Vercel (Settings → Environment Variables):
    - `DISCORD_TOKEN`
+   - `DISCORD_PUBLIC_KEY`
    - `GENIUS_API_KEY`
-4. Klik **Publish** → bot akan dapat URL
-5. Daftar https://uptimerobot.com
-6. Tambah monitor:
-   - **Type:** HTTP(s)
-   - **URL:** URL dari Replit
-   - **Interval:** 5 minutes
+   - `CLIENT_ID`
+4. Deploy. Dapatkan URL, contoh: `https://bot-lirik-discord.vercel.app`
+
+### 3. Atur Interaction Endpoint URL (Discord Developer Portal)
+
+1. Buka https://discord.com/developers/applications
+2. Pilih aplikasi → tab **General Information**
+3. Di bagian **Interaction Endpoint URL**, isi:
+   ```
+   https://<nama-project>.vercel.app/api/interactions
+   ```
+4. Klik **Save**. Discord akan mengirim `PING` untuk verifikasi — harus merespons `{ "type": 1 }`.
+
+### 4. Register Slash Commands
+
+Jalankan dari komputer lokal (root project):
+
+```bash
+npm install
+npm run register
+```
+
+Catatan:
+- Jika `GUILD_ID` di-isi di `.env`, command terdaftar ke guild itu **instan**.
+- Tanpa `GUILD_ID`, command terdaftar **global** dan butuh waktu hingga 1 jam untuk muncul.
+
+### 5. Invite Bot ke Server
+
+1. Tab **OAuth2** → **URL Generator**
+2. Centang `applications.commands` dan `bot`
+3. Centang permission: Send Messages, Embed Links, Read Message History
+4. Copy URL → buka di browser → invite
+
+## Environment Variables
+
+| Variabel | Wajib | Keterangan |
+|----------|-------|------------|
+| `DISCORD_TOKEN` | Ya | Token bot Discord |
+| `DISCORD_PUBLIC_KEY` | Ya | Public Key bot (untuk verifikasi webhook) |
+| `CLIENT_ID` | Ya | Application ID bot |
+| `GENIUS_API_KEY` | Opsional | Tanpa ini, bot hanya pakai lrclib.net |
+| `GUILD_ID` | Opsional | Isi untuk register command ke guild instan |
+
+## Menjalankan Lokal (Development)
+
+```bash
+npm install
+npx vercel dev
+```
+
+Server lokal akan jalan di `http://localhost:3000/api/interactions`. Untuk uji coba nyata, set **Interaction Endpoint URL** sementara ke URL tunneling (mis. via `ngrok`/`cloudflared`) atau deploy preview Vercel.
+
+> Jika `vercel dev` gagal karena script install esbuild terblokir, jalankan `npm approve-scripts esbuild`.
 
 ## Struktur Project
 
 ```
 Bot-Lirik-Discord/
+├── api/
+│   └── interactions.js       # Serverless function utama (handle webhook Discord)
+├── scripts/
+│   └── register-commands.js  # Daftarkan slash commands ke Discord
 ├── src/
-│   └── index.js              # Bot utama
-├── .env                      # Environment variables (jangan di-push!)
-├── .env.example              # Template
+│   ├── commands.js           # Definisi & handler command
+│   ├── lyrics.js             # Service lirik (Genius + lrclib) & cari artis
+│   └── helpers.js            # Verifikasi signature, REST Discord, embed builder
+├── vercel.json               # Konfigurasi Vercel
+├── .env.example              # Template environment variables
 ├── .gitignore
-├── start.bat                 # Shortcut jalankan bot lokal
-├── package.json
-└── README.md
+└── package.json
 ```
 
 ## Credits
 
-- [Discord.js](https://discord.js.org/)
 - [Genius](https://genius.com/)
 - [lrclib.net](https://lrclib.net/)
-- [UptimeRobot](https://uptimerobot.com/)
+- [Discord Developer Portal](https://discord.com/developers/applications)
+- [Vercel](https://vercel.com/)

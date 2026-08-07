@@ -1,18 +1,25 @@
 {
   "name": "discord-lyrics-bot",
-  "version": "1.0.0",
-  "description": "Discord Bot untuk mencari lirik lagu",
-  "main": "src/index.js",
+  "version": "2.0.0",
+  "description": "Discord Bot untuk mencari lirik lagu (Vercel serverless via HTTP interactions)",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "register": "node scripts/register-commands.js",
+    "dev": "vercel dev",
+    "start": "vercel dev"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^14.16.3",
+    "@vercel/functions": "^3.8.0",
     "dotenv": "^16.4.7",
-    "genius-lyrics": "^4.4.7"
+    "genius-lyrics": "^4.4.7",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "vercel": "^41.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.14.47": true
   }
 }

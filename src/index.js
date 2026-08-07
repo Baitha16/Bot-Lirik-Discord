@@ -28,16 +28,6 @@ const commands = [
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
-(async () => {
-  try {
-    console.log('Registering slash commands...');
-    await rest.put(Routes.applicationCommands(client.user?.id || process.env.CLIENT_ID), { body: commands });
-    console.log('Slash commands registered!');
-  } catch (e) {
-    console.error('Register error:', e.message);
-  }
-})();
-
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { 'User-Agent': 'DiscordLyricsBot/1.0 (https://github.com/Baitha16/Bot-Lirik-Discord)' } }, (res) => {
@@ -94,14 +84,16 @@ async function tryLrclib(query) {
 
 client.once('ready', async () => {
   console.log('Bot online sebagai ' + client.user.tag);
+  console.log('Bot ID: ' + client.user.id);
   client.user.setActivity('/help | /lirik', { type: 3 });
 
   try {
-    console.log('Registering slash commands...');
+    console.log('Registering slash commands untuk application ID: ' + client.user.id);
     await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
     console.log('Slash commands registered!');
   } catch (e) {
     console.error('Register error:', e.message);
+    console.error('Full error:', e);
   }
 });
 
@@ -158,7 +150,9 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN)
+  .then(() => console.log('Login berhasil!'))
+  .catch((e) => console.error('Login gagal:', e.message));
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });

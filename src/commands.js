@@ -3,34 +3,33 @@
 const { searchLyrics, searchArtist } = require('./lyrics');
 const { discordFetch, buildEmbed, getUserName } = require('./helpers');
 
-// Daftar music bot yang dikenal (ID + nama)
+// Daftar music bot yang dikenal (ID + nama) - Verified dari top.gg/Discord
 const MUSIC_BOTS = [
-  { id: '242634733769803776', name: 'Grobot' },
+  { id: '975048280926982164', name: 'Grobot' },
   // Jockie Music (4 instances)
   { id: '411916947773587456', name: 'Jockie Music' },
   { id: '819222665028604969', name: 'Jockie Music 2' },
   { id: '412347553141751808', name: 'Jockie Music 3' },
-  { id: '473287938564888587', name: 'Jockie Music 4' },
-  { id: '180723147292901376', name: 'FredBoat' },
-  { id: '772273272418365460', name: 'Hydra' },
-  { id: '282859034547439617', name: 'ProBot' },
-  { id: '473422981896888330', name: 'Rythm' },
-  { id: '252182229384505363', name: 'MEE6' },
-  { id: '302789687246479360', name: 'SoundCloud' },
-  { id: '884910136721209364', name: 'Soundify' },
-  { id: '904995708367867936', name: 'Blockhead' },
+  // { id: '473287938564888587', name: 'Jockie Music 4' }, // unverified
+  { id: '184405311681986560', name: 'FredBoat' },
+  { id: '547905866255433758', name: 'Hydra' },
+  { id: '282859044593598464', name: 'ProBot' },
+  { id: '235088799074484224', name: 'Rythm' },
+  { id: '159985870458322944', name: 'MEE6' },
+  { id: '890343617762304070', name: 'SoundCloud' },
+  { id: '834847569476845648', name: 'Soundify' },
   { id: '1259530981526868048', name: 'Cloudy' },
-  { id: '928686911484782632', name: 'Flavi' },
-  { id: '1045335103778318416', name: 'Luna' },
-  { id: '951084658311339068', name: 'Lara' },
-  { id: '937278521008445490', name: 'Matchbox' },
-  { id: '751438722725712997', name: 'Listen' },
+  { id: '684773505157431347', name: 'FlaviBot' },
+  { id: '1013571395000733726', name: 'LunaBot' },
+  { id: '944016826751389717', name: 'Lara' },
+  { id: '1145363441524166758', name: 'Matchbox' },
+  { id: '777401960793636934', name: 'Listen' },
 ];
 
 const MUSIC_BOT_NAMES = [
   'grobot', 'jockie', 'fredboat', 'hydra', 'probot', 'rythm', 'mee6',
-  'soundcloud', 'soundify', 'blockhead', 'cloudy', 'flavi', 'luna',
-  'lara', 'matchbox', 'listen', 'music', 'play', 'jukebox', 'dj',
+  'soundcloud', 'soundify', 'cloudy', 'flavibot', 'lunabot', 'lara',
+  'matchbox', 'listen', 'music', 'play', 'jukebox', 'dj',
   'jockie music', 'music bot', 'musicbot',
 ];
 

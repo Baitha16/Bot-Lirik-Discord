@@ -219,18 +219,24 @@ const commandList = [
       const query = judulOpt ? judulOpt.value : '';
       const q = (query || '').trim().toLowerCase();
 
+      console.log('[CMD] /lirik query: "' + query + '" (lowercase: "' + q + '")');
+
       let searchQuery = query;
 
       // Cek apakah user minta nowplaying
       if (q === 'nowplaying' || q === 'np' || q === 'now playing' || q === 'sedang diputar') {
+        console.log('[CMD] ✓ Match nowplaying, calling findNowPlaying...');
         const songQuery = await findNowPlaying(interaction);
         if (!songQuery) {
+          console.log('[CMD] ✗ findNowPlaying returned null');
           return {
             content: 'Tidak ditemukan lagu yang sedang diputar. Coba ketik `/lirik Judul Lagu` langsung.',
             flags: 64,
           };
         }
         searchQuery = songQuery;
+      } else {
+        console.log('[CMD] ✗ No match for nowplaying, searching directly...');
       }
 
       const result = await searchLyrics(searchQuery);

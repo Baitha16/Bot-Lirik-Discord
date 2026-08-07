@@ -15,7 +15,7 @@ const MUSIC_BOTS = [
   { id: '302789687246479360', name: 'SoundCloud' },
   { id: '884910136721209364', name: 'Soundify' },
   { id: '904995708367867936', name: 'Blockhead' },
-  { id: '574879582569027595', name: 'Cloudy' },
+  { id: '1259530981526868048', name: 'Cloudy' },
   { id: '928686911484782632', name: 'Flavi' },
   { id: '1045335103778318416', name: 'Luna' },
   { id: '951084658311339068', name: 'Lara' },
@@ -42,11 +42,36 @@ function parseSongFromEmbed(embed) {
   let title = '';
   let artist = '';
 
+  // 1. Cek title embed - cari "now playing", "playing", "listening", atau langsung judul
   if (embed.title) {
-    const match = embed.title.match(/(?:now playing|playing|listening)[:\s]*(.+)/i);
-    if (match) title = match[1].trim();
+    // Coba hapus prefix "now playing", "playing", "listening"
+    const match = embed.title.match(/(?:now playing|playing|listening|currently playing)[:\s]*(.+)/i);
+    if (match) {
+      title = match[1].trim();
+    } else if (!embed.title.toLowerCase().includes('queue') && !embed.title.toLowerCase().includes('playlist')) {
+      // Gunakan title langsung jika bukan queue/playlist
+      title = embed.title.trim();
+    }
   }
 
+  // 2. Cek fields - cari title/track/song dan artist/by/author
+  if (embed.fields && !title) {
+    for (const field of embed.fields) {
+      const name = (field.name || '').toLowerCase();
+      const value = field.value || '';
+      // Bersihkan markdown link [text](url) -> text
+      const cleanValue = value.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/<[^>]+>/g, '').trim();
+      
+      if (name.includes('title') || name.includes('track') || name.includes('song') || name.includes('now playing')) {
+        title = cleanValue;
+      }
+      if (name.includes('artist') || name.includes('by') || name.includes('author') || name.includes('singer')) {
+        artist = cleanValue;
+      }
+    }
+  }
+
+  // 3. Cek description - format "Judul - Artis" atau "Judul"
   if (!title && embed.description) {
     const match = embed.description.match(/^(.+?)(?:\s*[-—–]\s*(.+))?$/m);
     if (match) {
@@ -55,24 +80,16 @@ function parseSongFromEmbed(embed) {
     }
   }
 
-  if (!title && embed.fields) {
-    for (const field of embed.fields) {
-      const name = (field.name || '').toLowerCase();
-      const value = field.value || '';
-      if (name.includes('title') || name.includes('track') || name.includes('song') || name.includes('now playing')) {
-        title = value.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
-      }
-      if (name.includes('artist') || name.includes('by') || name.includes('author')) {
-        artist = value.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
-      }
-    }
-  }
-
+  // 4. Fallback: gunakan title jika ada thumbnail (embed lagu biasanya ada thumbnail)
   if (!title && embed.thumbnail && embed.title && !embed.title.toLowerCase().includes('queue')) {
     title = embed.title;
   }
 
   if (!title) return null;
+  
+  // Bersihkan title dari karakter yang tidak perlu
+  title = title.replace(/🎵|🎶|▶|⏸|🔴|🟢|🎵|🎧/g, '').trim();
+  
   if (artist && !title.toLowerCase().includes(artist.toLowerCase())) {
     return title + ' - ' + artist;
   }
@@ -88,15 +105,34 @@ async function findNowPlaying(interaction) {
     console.log('[DEBUG] Gagal fetch messages: ' + e.message);
     return null;
   }
-  if (!messages || !messages.length) return null;
+  if (!messages || !messages.length) {
+    console.log('[DEBUG] Tidak ada pesan ditemukan');
+    return null;
+  }
+
+  console.log('[DEBUG] Ditemukan ' + messages.length + ' pesan');
 
   for (const msg of messages) {
     const author = msg.author || {};
-    if (!isMusicBot(author.id, author.username)) continue;
+    const isBot = isMusicBot(author.id, author.username);
+    
+    // Debug: log semua pesan dari bot
+    if (author.bot || isBot) {
+      console.log('[DEBUG] Pesan dari: ' + author.username + ' (ID: ' + author.id + ')');
+      if (msg.embeds && msg.embeds.length > 0) {
+        console.log('[DEBUG] Embed ditemukan: ' + JSON.stringify(msg.embeds[0]).substring(0, 200));
+      }
+    }
+
+    if (!isBot) continue;
+    
     if (msg.embeds && msg.embeds.length > 0) {
       for (const embed of msg.embeds) {
         const songQuery = parseSongFromEmbed(embed);
-        if (songQuery) return songQuery;
+        if (songQuery) {
+          console.log('[DEBUG] Lagu ditemukan: ' + songQuery);
+          return songQuery;
+        }
       }
     }
     if (msg.content) {
@@ -104,6 +140,7 @@ async function findNowPlaying(interaction) {
       if (match) return match[1].trim();
     }
   }
+  console.log('[DEBUG] Tidak ada lagu ditemukan dari music bot');
   return null;
 }
 

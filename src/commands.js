@@ -1,6 +1,5 @@
 'use strict';
 
-const { SlashCommandBuilder } = require('discord.js');
 const { searchLyrics, searchArtist } = require('./lyrics');
 const { discordFetch, buildEmbed, getUserName } = require('./helpers');
 
@@ -108,52 +107,67 @@ async function findNowPlaying(interaction) {
   return null;
 }
 
-// Command definitions
-const lirikCommand = new SlashCommandBuilder()
-  .setName('lirik')
-  .setDescription('Cari lirik lagu')
-  .addSubcommand(sub =>
-    sub.setName('manual')
-      .setDescription('Cari lirik dengan judul lagu')
-      .addStringOption(opt =>
-        opt.setName('judul').setDescription('Judul lagu (atau: Judul - Artis)').setRequired(true)
-      )
-  )
-  .addSubcommand(sub =>
-    sub.setName('nowplaying')
-      .setDescription('Ambil lirik dari lagu yang sedang diputar di music bot')
-  )
-  .addSubcommand(sub =>
-    sub.setName('np')
-      .setDescription('Sama seperti nowplaying')
-  );
+// Command JSON definitions (tanpa discord.js dependency)
+const commandsJSON = [
+  {
+    name: 'lirik',
+    description: 'Cari lirik lagu',
+    type: 1,
+    options: [
+      {
+        name: 'manual',
+        description: 'Cari lirik dengan judul lagu',
+        type: 1,
+        options: [
+          { name: 'judul', description: 'Judul lagu (atau: Judul - Artis)', type: 3, required: true },
+        ],
+      },
+      {
+        name: 'nowplaying',
+        description: 'Ambil lirik dari lagu yang sedang diputar di music bot',
+        type: 1,
+      },
+      {
+        name: 'np',
+        description: 'Sama seperti nowplaying',
+        type: 1,
+      },
+    ],
+  },
+  {
+    name: 'artist',
+    description: 'Cari info artis & lagu terpopulernya',
+    type: 1,
+    options: [
+      { name: 'nama', description: 'Nama artis / band', type: 3, required: true },
+    ],
+  },
+  {
+    name: 'ping',
+    description: 'Cek latensi bot ke API Discord',
+    type: 1,
+  },
+  {
+    name: 'status',
+    description: 'Info bot & sumber lirik',
+    type: 1,
+  },
+  {
+    name: 'help',
+    description: 'Tampilkan semua command yang tersedia',
+    type: 1,
+  },
+];
 
-const artistCommand = new SlashCommandBuilder()
-  .setName('artist')
-  .setDescription('Cari info artis & lagu terpopulernya')
-  .addStringOption(opt =>
-    opt.setName('nama').setDescription('Nama artis / band').setRequired(true)
-  );
-
-const pingCommand = new SlashCommandBuilder()
-  .setName('ping')
-  .setDescription('Cek latensi bot ke API Discord');
-
-const statusCommand = new SlashCommandBuilder()
-  .setName('status')
-  .setDescription('Info bot & sumber lirik');
-
-const helpCommand = new SlashCommandBuilder()
-  .setName('help')
-  .setDescription('Tampilkan semua command yang tersedia');
-
+// Command handlers
 const commandList = [
   {
     name: 'lirik',
-    builder: lirikCommand,
     defer: true,
     async execute(interaction) {
-      const sub = interaction.options.getSubcommand();
+      const sub = interaction.data.options && interaction.data.options[0]
+        ? interaction.data.options[0].name
+        : 'manual';
 
       if (sub === 'nowplaying' || sub === 'np') {
         const songQuery = await findNowPlaying(interaction);
@@ -183,7 +197,12 @@ const commandList = [
       }
 
       // Subcommand: manual
-      const query = interaction.options.getString('judul');
+      const judulOpt = interaction.data.options && interaction.data.options[0]
+        && interaction.data.options[0].options
+        ? interaction.data.options[0].options.find(o => o.name === 'judul')
+        : null;
+      const query = judulOpt ? judulOpt.value : '';
+
       const result = await searchLyrics(query);
       if (!result) return { content: 'Lirik tidak ditemukan. Coba format `/lirik manual Judul - Artis`.' };
 
@@ -205,10 +224,10 @@ const commandList = [
   },
   {
     name: 'artist',
-    builder: artistCommand,
     defer: true,
     async execute(interaction) {
-      const query = interaction.options.getString('nama');
+      const namaOpt = interaction.data.options ? interaction.data.options.find(o => o.name === 'nama') : null;
+      const query = namaOpt ? namaOpt.value : '';
       const artist = await searchArtist(query);
       if (!artist) return { content: 'Artis tidak ditemukan.' };
 
@@ -230,7 +249,6 @@ const commandList = [
   },
   {
     name: 'ping',
-    builder: pingCommand,
     async execute(interaction) {
       const start = Date.now();
       try { await discordFetch('/users/@me'); } catch (_) {}
@@ -246,7 +264,6 @@ const commandList = [
   },
   {
     name: 'status',
-    builder: statusCommand,
     async execute(interaction) {
       const start = Date.now();
       let botUser = null;
@@ -271,7 +288,6 @@ const commandList = [
   },
   {
     name: 'help',
-    builder: helpCommand,
     execute() {
       return {
         embeds: [buildEmbed({
@@ -292,7 +308,5 @@ const commandList = [
     },
   },
 ];
-
-const commandsJSON = commandList.map(cmd => cmd.builder.toJSON());
 
 module.exports = { commands: commandList, commandsJSON };

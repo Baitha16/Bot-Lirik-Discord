@@ -173,16 +173,26 @@ async function findNowPlaying(interaction) {
 const commandsJSON = [
   {
     name: 'lirik',
-    description: 'Cari lirik lagu (isi "nowplaying" atau "np" untuk lagu yang sedang diputar)',
+    description: 'Cari lirik lagu',
     type: 1,
     options: [
       {
         name: 'judul',
-        description: 'Judul lagu, atau "nowplaying" / "np" untuk lagu yang sedang diputar',
+        description: 'Judul lagu. Contoh: "Bohemian Rhapsody" atau "Bohemian Rhapsody - Queen"',
         type: 3,
         required: true,
       },
     ],
+  },
+  {
+    name: 'np',
+    description: 'Ambil lirik dari lagu yang sedang diputar di music bot',
+    type: 1,
+  },
+  {
+    name: 'nowplaying',
+    description: 'Ambil lirik dari lagu yang sedang diputar di music bot',
+    type: 1,
   },
   {
     name: 'artist',
@@ -217,30 +227,83 @@ const commandList = [
     async execute(interaction) {
       const judulOpt = interaction.data.options ? interaction.data.options.find(o => o.name === 'judul') : null;
       const query = judulOpt ? judulOpt.value : '';
-      const q = (query || '').trim().toLowerCase();
 
-      console.log('[CMD] /lirik query: "' + query + '" (lowercase: "' + q + '")');
+      console.log('[CMD] /lirik query: "' + query + '"');
 
-      let searchQuery = query;
-
-      // Cek apakah user minta nowplaying
-      if (q === 'nowplaying' || q === 'np' || q === 'now playing' || q === 'sedang diputar') {
-        console.log('[CMD] ✓ Match nowplaying, calling findNowPlaying...');
-        const songQuery = await findNowPlaying(interaction);
-        if (!songQuery) {
-          console.log('[CMD] ✗ findNowPlaying returned null');
-          return {
-            content: 'Tidak ditemukan lagu yang sedang diputar. Coba ketik `/lirik Judul Lagu` langsung.',
-            flags: 64,
-          };
-        }
-        searchQuery = songQuery;
-      } else {
-        console.log('[CMD] ✗ No match for nowplaying, searching directly...');
+      if (!query.trim()) {
+        return { content: 'Judul lagu harus diisi.', flags: 64 };
       }
 
-      const result = await searchLyrics(searchQuery);
+      const result = await searchLyrics(query);
       if (!result) return { content: 'Lirik tidak ditemukan. Coba format `/lirik Judul - Artis`.' };
+
+      const truncated = result.lyrics.length > 4000
+        ? result.lyrics.slice(0, 4000) + '\n\n... (lirik dipotong)'
+        : result.lyrics;
+
+      return {
+        embeds: [buildEmbed({
+          title: result.title,
+          author: result.artist,
+          description: truncated,
+          thumbnail: result.thumbnail,
+          url: result.url,
+          footer: 'Diminta oleh ' + getUserName(interaction) + ' | Sumber: ' + result.source,
+        })],
+      };
+    },
+  },
+  {
+    name: 'np',
+    defer: true,
+    async execute(interaction) {
+      console.log('[CMD] /np called');
+      const songQuery = await findNowPlaying(interaction);
+      if (!songQuery) {
+        console.log('[CMD] /np: Tidak ada lagu ditemukan');
+        return {
+          content: 'Tidak ditemukan lagu yang sedang diputar. Pastikan music bot sedang memutar lagu dan bot ini punya izin **Read Message History**.',
+          flags: 64,
+        };
+      }
+      console.log('[CMD] /np: Lagu ditemukan: ' + songQuery);
+
+      const result = await searchLyrics(songQuery);
+      if (!result) return { content: 'Lirik tidak ditemukan untuk: **' + songQuery + '**' };
+
+      const truncated = result.lyrics.length > 4000
+        ? result.lyrics.slice(0, 4000) + '\n\n... (lirik dipotong)'
+        : result.lyrics;
+
+      return {
+        embeds: [buildEmbed({
+          title: result.title,
+          author: result.artist,
+          description: truncated,
+          thumbnail: result.thumbnail,
+          url: result.url,
+          footer: 'Diminta oleh ' + getUserName(interaction) + ' | Sumber: ' + result.source,
+        })],
+      };
+    },
+  },
+  {
+    name: 'nowplaying',
+    defer: true,
+    async execute(interaction) {
+      console.log('[CMD] /nowplaying called');
+      const songQuery = await findNowPlaying(interaction);
+      if (!songQuery) {
+        console.log('[CMD] /nowplaying: Tidak ada lagu ditemukan');
+        return {
+          content: 'Tidak ditemukan lagu yang sedang diputar. Pastikan music bot sedang memutar lagu dan bot ini punya izin **Read Message History**.',
+          flags: 64,
+        };
+      }
+      console.log('[CMD] /nowplaying: Lagu ditemukan: ' + songQuery);
+
+      const result = await searchLyrics(songQuery);
+      if (!result) return { content: 'Lirik tidak ditemukan untuk: **' + songQuery + '**' };
 
       const truncated = result.lyrics.length > 4000
         ? result.lyrics.slice(0, 4000) + '\n\n... (lirik dipotong)'
@@ -331,8 +394,8 @@ const commandList = [
           description: 'Bot untuk mencari lirik lagu, berjalan di Vercel serverless.',
           fields: [
             { name: '/lirik <judul>', value: 'Cari lirik lagu. Contoh: `/lirik Bohemian Rhapsody - Queen`', inline: false },
-            { name: '/lirik nowplaying', value: 'Ambil lirik dari lagu yang sedang diputar di music bot', inline: false },
-            { name: '/lirik np', value: 'Sama seperti nowplaying', inline: false },
+            { name: '/np', value: 'Ambil lirik dari lagu yang sedang diputar di music bot', inline: false },
+            { name: '/nowplaying', value: 'Sama seperti /np', inline: false },
             { name: '/artist <nama>', value: 'Cari info artis & lagu terpopulernya. Contoh: `/artist Taylor Swift`', inline: false },
             { name: '/ping', value: 'Cek latensi bot ke API Discord', inline: false },
             { name: '/status', value: 'Info status bot & sumber lirik', inline: false },

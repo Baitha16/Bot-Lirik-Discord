@@ -107,30 +107,18 @@ async function findNowPlaying(interaction) {
   return null;
 }
 
-// Command JSON definitions (tanpa discord.js dependency)
+// Command JSON (simple, tanpa subcommand)
 const commandsJSON = [
   {
     name: 'lirik',
-    description: 'Cari lirik lagu',
+    description: 'Cari lirik lagu (isi "nowplaying" atau "np" untuk lagu yang sedang diputar)',
     type: 1,
     options: [
       {
-        name: 'manual',
-        description: 'Cari lirik dengan judul lagu',
-        type: 1,
-        options: [
-          { name: 'judul', description: 'Judul lagu (atau: Judul - Artis)', type: 3, required: true },
-        ],
-      },
-      {
-        name: 'nowplaying',
-        description: 'Ambil lirik dari lagu yang sedang diputar di music bot',
-        type: 1,
-      },
-      {
-        name: 'np',
-        description: 'Sama seperti nowplaying',
-        type: 1,
+        name: 'judul',
+        description: 'Judul lagu, atau "nowplaying" / "np" untuk lagu yang sedang diputar',
+        type: 3,
+        required: true,
       },
     ],
   },
@@ -165,46 +153,26 @@ const commandList = [
     name: 'lirik',
     defer: true,
     async execute(interaction) {
-      const sub = interaction.data.options && interaction.data.options[0]
-        ? interaction.data.options[0].name
-        : 'manual';
+      const judulOpt = interaction.data.options ? interaction.data.options.find(o => o.name === 'judul') : null;
+      const query = judulOpt ? judulOpt.value : '';
+      const q = (query || '').trim().toLowerCase();
 
-      if (sub === 'nowplaying' || sub === 'np') {
+      let searchQuery = query;
+
+      // Cek apakah user minta nowplaying
+      if (q === 'nowplaying' || q === 'np' || q === 'now playing' || q === 'sedang diputar') {
         const songQuery = await findNowPlaying(interaction);
         if (!songQuery) {
           return {
-            content: 'Tidak ditemukan lagu yang sedang diputar. Coba ketik `/lirik manual` langsung.',
+            content: 'Tidak ditemukan lagu yang sedang diputar. Coba ketik `/lirik Judul Lagu` langsung.',
             flags: 64,
           };
         }
-        const result = await searchLyrics(songQuery);
-        if (!result) return { content: 'Lirik tidak ditemukan untuk lagu yang sedang diputar.' };
-
-        const truncated = result.lyrics.length > 4000
-          ? result.lyrics.slice(0, 4000) + '\n\n... (lirik dipotong)'
-          : result.lyrics;
-
-        return {
-          embeds: [buildEmbed({
-            title: result.title,
-            author: result.artist,
-            description: truncated,
-            thumbnail: result.thumbnail,
-            url: result.url,
-            footer: 'Diminta oleh ' + getUserName(interaction) + ' | Sumber: ' + result.source + ' | Now Playing',
-          })],
-        };
+        searchQuery = songQuery;
       }
 
-      // Subcommand: manual
-      const judulOpt = interaction.data.options && interaction.data.options[0]
-        && interaction.data.options[0].options
-        ? interaction.data.options[0].options.find(o => o.name === 'judul')
-        : null;
-      const query = judulOpt ? judulOpt.value : '';
-
-      const result = await searchLyrics(query);
-      if (!result) return { content: 'Lirik tidak ditemukan. Coba format `/lirik manual Judul - Artis`.' };
+      const result = await searchLyrics(searchQuery);
+      if (!result) return { content: 'Lirik tidak ditemukan. Coba format `/lirik Judul - Artis`.' };
 
       const truncated = result.lyrics.length > 4000
         ? result.lyrics.slice(0, 4000) + '\n\n... (lirik dipotong)'
@@ -294,7 +262,7 @@ const commandList = [
           title: 'Lyrics Bot - Commands',
           description: 'Bot untuk mencari lirik lagu, berjalan di Vercel serverless.',
           fields: [
-            { name: '/lirik manual <judul>', value: 'Cari lirik lagu. Contoh: `/lirik manual Bohemian Rhapsody - Queen`', inline: false },
+            { name: '/lirik <judul>', value: 'Cari lirik lagu. Contoh: `/lirik Bohemian Rhapsody - Queen`', inline: false },
             { name: '/lirik nowplaying', value: 'Ambil lirik dari lagu yang sedang diputar di music bot', inline: false },
             { name: '/lirik np', value: 'Sama seperti nowplaying', inline: false },
             { name: '/artist <nama>', value: 'Cari info artis & lagu terpopulernya. Contoh: `/artist Taylor Swift`', inline: false },

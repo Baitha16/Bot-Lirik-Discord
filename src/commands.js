@@ -6,7 +6,11 @@ const { discordFetch, buildEmbed, getUserName } = require('./helpers');
 // Daftar music bot yang dikenal (ID + nama)
 const MUSIC_BOTS = [
   { id: '242634733769803776', name: 'Grobot' },
-  { id: '581860774314993664', name: 'Jockie Music' },
+  // Jockie Music (4 instances)
+  { id: '411916947773587456', name: 'Jockie Music' },
+  { id: '819222665028604969', name: 'Jockie Music 2' },
+  { id: '412347553141751808', name: 'Jockie Music 3' },
+  { id: '473287938564888587', name: 'Jockie Music 4' },
   { id: '180723147292901376', name: 'FredBoat' },
   { id: '772273272418365460', name: 'Hydra' },
   { id: '282859034547439617', name: 'ProBot' },
@@ -27,6 +31,7 @@ const MUSIC_BOT_NAMES = [
   'grobot', 'jockie', 'fredboat', 'hydra', 'probot', 'rythm', 'mee6',
   'soundcloud', 'soundify', 'blockhead', 'cloudy', 'flavi', 'luna',
   'lara', 'matchbox', 'listen', 'music', 'play', 'jukebox', 'dj',
+  'jockie music', 'music bot', 'musicbot',
 ];
 
 function isMusicBot(userId, username) {
@@ -118,9 +123,9 @@ async function findNowPlaying(interaction) {
     
     // Debug: log semua pesan dari bot
     if (author.bot || isBot) {
-      console.log('[DEBUG] Pesan dari: ' + author.username + ' (ID: ' + author.id + ')');
+      console.log('[DEBUG] Pesan dari: ' + author.username + ' (ID: ' + author.id + ', isMusicBot: ' + isBot + ')');
       if (msg.embeds && msg.embeds.length > 0) {
-        console.log('[DEBUG] Embed ditemukan: ' + JSON.stringify(msg.embeds[0]).substring(0, 200));
+        console.log('[DEBUG] Embed ditemukan: ' + JSON.stringify(msg.embeds[0]).substring(0, 300));
       }
     }
 

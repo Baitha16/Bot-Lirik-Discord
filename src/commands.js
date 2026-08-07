@@ -418,7 +418,6 @@ const commandList = [
       return {
         embeds: [buildEmbed({
           title: 'Lyrics Bot - Commands',
-          description: 'Bot untuk mencari lirik lagu, berjalan di Vercel serverless.',
           fields: [
             { name: '/lirik <judul>', value: 'Cari lirik lagu. Contoh: `/lirik Bohemian Rhapsody - Queen`', inline: false },
             { name: '/lirik nowplaying', value: 'Ambil lirik dari lagu yang sedang diputar (fallback)', inline: false },

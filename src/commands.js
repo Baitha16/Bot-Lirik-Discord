@@ -227,11 +227,38 @@ const commandList = [
     async execute(interaction) {
       const judulOpt = interaction.data.options ? interaction.data.options.find(o => o.name === 'judul') : null;
       const query = judulOpt ? judulOpt.value : '';
+      const q = (query || '').trim().toLowerCase();
 
       console.log('[CMD] /lirik query: "' + query + '"');
 
       if (!query.trim()) {
         return { content: 'Judul lagu harus diisi.', flags: 64 };
+      }
+
+      // Fallback: handle nowplaying/np dari /lirik juga
+      if (q === 'nowplaying' || q === 'np' || q === 'now playing' || q === 'sedang diputar') {
+        console.log('[CMD] /lirik: detected nowplaying query');
+        const songQuery = await findNowPlaying(interaction);
+        if (songQuery) {
+          console.log('[CMD] /lirik: found song: ' + songQuery);
+          const result = await searchLyrics(songQuery);
+          if (result) {
+            const truncated = result.lyrics.length > 4000
+              ? result.lyrics.slice(0, 4000) + '\n\n... (lirik dipotong)'
+              : result.lyrics;
+            return {
+              embeds: [buildEmbed({
+                title: result.title,
+                author: result.artist,
+                description: truncated,
+                thumbnail: result.thumbnail,
+                url: result.url,
+                footer: 'Diminta oleh ' + getUserName(interaction) + ' | Sumber: ' + result.source,
+              })],
+            };
+          }
+        }
+        return { content: 'Tidak ditemukan lagu yang sedang diputar. Coba `/lirik Judul Lagu` langsung.', flags: 64 };
       }
 
       const result = await searchLyrics(query);

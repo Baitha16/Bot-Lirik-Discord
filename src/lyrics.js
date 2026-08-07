@@ -28,6 +28,7 @@ function cleanLyrics(text) {
     .trim();
 }
 
+// Source 1: Genius API
 async function tryGenius(query) {
   const client = getGeniusClient();
   if (!client) return null;
@@ -51,6 +52,7 @@ async function tryGenius(query) {
   }
 }
 
+// Source 2: lrclib.net
 async function tryLrclib(query) {
   try {
     const parts = query.split(' - ').map((s) => s.trim());
@@ -73,12 +75,87 @@ async function tryLrclib(query) {
   return null;
 }
 
+// Source 3: lrcmux.dev
+async function tryLrcmux(query) {
+  try {
+    const parts = query.split(' - ').map((s) => s.trim());
+    let artist = '';
+    let track = query;
+    if (parts.length >= 2) {
+      track = parts[0];
+      artist = parts.slice(1).join(' - ');
+    }
+
+    let url;
+    if (artist) {
+      url = 'https://lrcmux.dev/api/search?q=' + encodeURIComponent(track + ' ' + artist);
+    } else {
+      url = 'https://lrcmux.dev/api/search?q=' + encodeURIComponent(track);
+    }
+
+    const results = await fetchJson(url);
+    if (!results || !results.length) return null;
+
+    for (const r of results) {
+      const raw = r.lyrics || r.plainLyrics || r.syncedLyrics;
+      if (raw) {
+        return {
+          lyrics: cleanLyrics(raw),
+          title: r.trackName || r.title || track,
+          artist: r.artistName || r.artist || artist,
+          source: 'lrcmux',
+        };
+      }
+    }
+  } catch (e) {
+    console.log('[DEBUG] lrcmux gagal: ' + e.message);
+  }
+  return null;
+}
+
+// Source 4: Better Lyrics API
+async function tryBetterLyrics(query) {
+  try {
+    const parts = query.split(' - ').map((s) => s.trim());
+    let artist = '';
+    let track = query;
+    if (parts.length >= 2) {
+      track = parts[0];
+      artist = parts.slice(1).join(' - ');
+    }
+
+    const url = 'https://lyrics-api.boidu.dev/getLyrics?s=' + encodeURIComponent(track) + '&a=' + encodeURIComponent(artist);
+    const result = await fetchJson(url);
+
+    if (result && result.lyrics) {
+      return {
+        lyrics: cleanLyrics(result.lyrics),
+        title: result.song || result.title || track,
+        artist: result.artist || artist,
+        source: 'BetterLyrics',
+      };
+    }
+  } catch (e) {
+    console.log('[DEBUG] BetterLyrics gagal: ' + e.message);
+  }
+  return null;
+}
+
+// Main search: Genius → lrclib → lrcmux → BetterLyrics
 async function searchLyrics(query) {
   let result = await tryGenius(query);
-  if (!result) {
-    console.log('[DEBUG] Genius tidak menemukan, coba lrclib...');
-    result = await tryLrclib(query);
-  }
+  if (result) return result;
+
+  console.log('[DEBUG] Genius tidak menemukan, coba lrclib...');
+  result = await tryLrclib(query);
+  if (result) return result;
+
+  console.log('[DEBUG] lrclib tidak menemukan, coba lrcmux...');
+  result = await tryLrcmux(query);
+  if (result) return result;
+
+  console.log('[DEBUG] lrcmux tidak menemukan, coba BetterLyrics...');
+  result = await tryBetterLyrics(query);
   return result;
 }
 

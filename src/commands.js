@@ -46,20 +46,21 @@ function parseSongFromEmbed(embed) {
   let title = '';
   let artist = '';
 
-  // 1. Cek title embed - cari "now playing", "playing", "listening", atau langsung judul
+  // 1. Cek title embed
   if (embed.title) {
-    // Coba hapus prefix "now playing", "playing", "listening"
+    // Coba hapus prefix "now playing", "playing", "listening", "currently playing"
     const match = embed.title.match(/(?:now playing|playing|listening|currently playing)[:\s]*(.+)/i);
     if (match) {
       title = match[1].trim();
-    } else if (!embed.title.toLowerCase().includes('queue') && !embed.title.toLowerCase().includes('playlist')) {
-      // Gunakan title langsung jika bukan queue/playlist
+    } else if (!embed.title.toLowerCase().includes('queue') && !embed.title.toLowerCase().includes('playlist') && !embed.title.toLowerCase().includes('search')) {
+      // Gunakan title langsung jika bukan queue/playlist/search
       title = embed.title.trim();
     }
+    console.log('[NP] parseSong title: "' + embed.title + '" -> "' + title + '"');
   }
 
-  // 2. Cek fields - cari title/track/song dan artist/by/author
-  if (embed.fields && !title) {
+  // 2. Cek fields
+  if (embed.fields) {
     for (const field of embed.fields) {
       const name = (field.name || '').toLowerCase();
       const value = field.value || '';
@@ -67,32 +68,39 @@ function parseSongFromEmbed(embed) {
       const cleanValue = value.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/<[^>]+>/g, '').trim();
       
       if (name.includes('title') || name.includes('track') || name.includes('song') || name.includes('now playing')) {
-        title = cleanValue;
+        if (!title) title = cleanValue;
+        console.log('[NP] parseSong field title: "' + name + '" = "' + cleanValue + '"');
       }
       if (name.includes('artist') || name.includes('by') || name.includes('author') || name.includes('singer')) {
         artist = cleanValue;
+        console.log('[NP] parseSong field artist: "' + name + '" = "' + cleanValue + '"');
       }
     }
   }
 
-  // 3. Cek description - format "Judul - Artis" atau "Judul"
+  // 3. Cek description
   if (!title && embed.description) {
     const match = embed.description.match(/^(.+?)(?:\s*[-—–]\s*(.+))?$/m);
     if (match) {
       title = match[1].trim();
       if (match[2]) artist = match[2].trim();
     }
+    console.log('[NP] parseSong desc: "' + (embed.description || '').substring(0, 100) + '" -> title="' + title + '"');
   }
 
-  // 4. Fallback: gunakan title jika ada thumbnail (embed lagu biasanya ada thumbnail)
+  // 4. Fallback: gunakan title jika ada thumbnail
   if (!title && embed.thumbnail && embed.title && !embed.title.toLowerCase().includes('queue')) {
     title = embed.title;
+    console.log('[NP] parseSong fallback thumbnail: "' + title + '"');
   }
 
-  if (!title) return null;
+  if (!title) {
+    console.log('[NP] parseSong: no title found');
+    return null;
+  }
   
   // Bersihkan title dari karakter yang tidak perlu
-  title = title.replace(/🎵|🎶|▶|⏸|🔴|🟢|🎵|🎧/g, '').trim();
+  title = title.replace(/🎵|🎶|▶|⏸|🔴|🟢|🎧|🔴|🟢/g, '').trim();
   
   if (artist && !title.toLowerCase().includes(artist.toLowerCase())) {
     return title + ' - ' + artist;
@@ -104,47 +112,60 @@ async function findNowPlaying(interaction) {
   const channelId = interaction.channel_id;
   let messages;
   try {
-    messages = await discordFetch('/channels/' + channelId + '/messages?limit=20');
+    messages = await discordFetch('/channels/' + channelId + '/messages?limit=30');
   } catch (e) {
-    console.log('[DEBUG] Gagal fetch messages: ' + e.message);
+    console.log('[NP] Gagal fetch messages: ' + e.message);
     return null;
   }
   if (!messages || !messages.length) {
-    console.log('[DEBUG] Tidak ada pesan ditemukan');
+    console.log('[NP] Tidak ada pesan ditemukan di channel ' + channelId);
     return null;
   }
 
-  console.log('[DEBUG] Ditemukan ' + messages.length + ' pesan');
+  console.log('[NP] Ditemukan ' + messages.length + ' pesan di channel ' + channelId);
 
+  // Log semua bot yang ditemukan untuk debug
+  const botMessages = messages.filter(m => m.author && m.author.bot);
+  console.log('[NP] Total bot messages: ' + botMessages.length);
+  for (const bm of botMessages) {
+    console.log('[NP] Bot: ' + bm.author.username + ' (ID: ' + bm.author.id + ', embeds: ' + (bm.embeds ? bm.embeds.length : 0) + ')');
+  }
+
+  // Cari dari message terbaru ke lama
   for (const msg of messages) {
     const author = msg.author || {};
-    const isBot = isMusicBot(author.id, author.username);
+    if (!author.bot) continue;
     
-    // Debug: log semua pesan dari bot
-    if (author.bot || isBot) {
-      console.log('[DEBUG] Pesan dari: ' + author.username + ' (ID: ' + author.id + ', isMusicBot: ' + isBot + ')');
-      if (msg.embeds && msg.embeds.length > 0) {
-        console.log('[DEBUG] Embed ditemukan: ' + JSON.stringify(msg.embeds[0]).substring(0, 300));
-      }
-    }
-
+    const isBot = isMusicBot(author.id, author.username);
     if (!isBot) continue;
     
+    console.log('[NP] Music bot terdeteksi: ' + author.username + ' (ID: ' + author.id + ')');
+    
+    // Cek embeds
     if (msg.embeds && msg.embeds.length > 0) {
-      for (const embed of msg.embeds) {
+      for (let i = 0; i < msg.embeds.length; i++) {
+        const embed = msg.embeds[i];
+        console.log('[NP] Embed #' + i + ': title=' + (embed.title || 'null') + ', desc=' + (embed.description || 'null').substring(0, 100));
+        
         const songQuery = parseSongFromEmbed(embed);
         if (songQuery) {
-          console.log('[DEBUG] Lagu ditemukan: ' + songQuery);
+          console.log('[NP] ✓ Lagu ditemukan: ' + songQuery);
           return songQuery;
         }
       }
     }
+    
+    // Cek content (pesan teks)
     if (msg.content) {
-      const match = msg.content.match(/(?:now playing|playing|listening)[:\s]*(.+)/i);
-      if (match) return match[1].trim();
+      const match = msg.content.match(/(?:now playing|playing|listening| currently)[:\s]*(.+)/i);
+      if (match) {
+        console.log('[NP] ✓ Lagu dari content: ' + match[1].trim());
+        return match[1].trim();
+      }
     }
   }
-  console.log('[DEBUG] Tidak ada lagu ditemukan dari music bot');
+  
+  console.log('[NP] ✗ Tidak ada lagu ditemukan dari music bot');
   return null;
 }
 

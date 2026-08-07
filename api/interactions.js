@@ -61,8 +61,12 @@ module.exports = async (req, res) => {
     return;
   }
 
+  console.log('[INTERACTION] Received type=' + interaction.type + ', data=' + JSON.stringify(interaction.data));
+
   const command = commands.find((c) => interaction.data && c.name === interaction.data.name);
   if (!command) {
+    console.log('[INTERACTION] Command not found: ' + (interaction.data ? interaction.data.name : 'null'));
+    console.log('[INTERACTION] Available commands: ' + commands.map(c => c.name).join(', '));
     res.status(200).json(messageResponse('Command tidak dikenal. Gunakan `/help`.', null, 64));
     return;
   }

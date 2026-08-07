@@ -1,13 +1,12 @@
-# Discord Lyrics Bot 🎵
+# Discord Lyrics Bot
 
-Bot Discord untuk mencari lirik lagu, di-deploy di **Vercel serverless** menggunakan **HTTP interactions** (webhook). Menggunakan **4 sumber lirik** dengan fallback otomatis.
-
-> Serverless artinya bot tidak butuh proses yang berjalan terus-menerus. Setiap command memicu serverless function via webhook Discord.
+Bot Discord untuk mencari lirik lagu dengan **4 sumber lirik** dan auto-detect lagu dari music bot.
 
 ## Fitur
 
 - `/lirik <judul>` - Cari lirik lagu
-- `/lirik nowplaying` / `/lirik np` - Auto-detect lagu dari music bot (Jockie, Cloudy, Hydra, dll)
+- `/np` atau `/nowplaying` - Auto-detect lagu dari music bot (Jockie, Cloudy, Hydra, dll)
+- `/lirik nowplaying` - Fallback untuk ambil lirik dari music bot
 - `/artist <nama>` - Info artis & lagu terpopulernya
 - `/ping`, `/status`, `/help`
 - **4 sumber lirik**: Genius → lrclib.net → lrcmux.dev → Better Lyrics (otomatis fallback)
@@ -21,8 +20,10 @@ Bot Discord untuk mencari lirik lagu, di-deploy di **Vercel serverless** menggun
 |---------|-----------|
 | `/lirik <judul>` | Cari lirik lagu |
 | `/lirik <judul> - <artis>` | Cari lirik spesifik |
-| `/lirik nowplaying` | Ambil lirik dari lagu yang sedang diputar di music bot |
-| `/lirik np` | Sama seperti nowplaying |
+| `/np` | Ambil lirik dari lagu yang sedang diputar di music bot |
+| `/nowplaying` | Sama seperti /np |
+| `/lirik nowplaying` | Fallback untuk ambil lirik dari music bot |
+| `/lirik np` | Fallback untuk ambil lirik dari music bot |
 | `/artist <nama>` | Info artis & lagu terpopulernya |
 | `/ping` | Cek latensi bot ke API Discord |
 | `/status` | Info status bot & sumber lirik |

@@ -178,7 +178,7 @@ const commandsJSON = [
     options: [
       {
         name: 'judul',
-        description: 'Judul lagu. Contoh: "Bohemian Rhapsody" atau "Bohemian Rhapsody - Queen"',
+        description: 'Judul lagu. Contoh: "Judul Lagu" atau "Judul Lagu - Artist"',
         type: 3,
         required: true,
       },
@@ -419,7 +419,7 @@ const commandList = [
         embeds: [buildEmbed({
           title: 'Lyrics Bot - Commands',
           fields: [
-            { name: '/lirik <judul>', value: 'Cari lirik lagu. Contoh: `/lirik Bohemian Rhapsody - Queen`', inline: false },
+            { name: '/lirik <judul>', value: 'Cari lirik lagu. Contoh: `/lirik Judul Lagu` atau `/lirik Judul Lagu - Artist`', inline: false },
             { name: '/lirik nowplaying', value: 'Ambil lirik dari lagu yang sedang diputar (fallback)', inline: false },
             { name: '/np', value: 'Ambil lirik dari lagu yang sedang diputar di music bot', inline: false },
             { name: '/nowplaying', value: 'Sama seperti /np', inline: false },

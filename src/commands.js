@@ -58,18 +58,23 @@ function cleanSongText(text) {
   if (!text) return '';
   let clean = cleanMarkdown(text);
   
-  // Hapus prefix umum
+  // Hapus prefix umum (case insensitive)
   clean = clean.replace(/^(?:now playing|playing|listening|started playing|currently playing)[:\s]*/i, '');
   
-  // Hapus isi dalam kurung
+  // Hapus isi dalam kurung [text] dan (text)
   clean = clean.replace(/\s*\([^)]*\)\s*/g, ' ');
   clean = clean.replace(/\s*\[[^\]]*\]\s*/g, ' ');
   
-  // Hapus suffix/extra info
-  clean = clean.replace(/\s*[-—–|]\s*(?:requested by|added by|duration|album|queue|position|source|platform|spotify|youtube|soundcloud|duration|requested by|up next).*/i, '');
+  // Hapus suffix/extra info setelah title
+  clean = clean.replace(/\s*[-—–|]\s*(?:requested by|added by|duration|album|queue|position|source|platform|spotify|youtube|soundcloud|up next|by\s).*/i, '');
   clean = clean.replace(/\s*\d+:\d+\s*$/i, '');   // 3:45 at end
   clean = clean.replace(/\s*🎵\s*$/i, '');         // trailing emoji
   clean = clean.replace(/\s*🎶\s*$/i, '');
+  clean = clean.replace(/\s*🎧\s*$/i, '');
+  clean = clean.replace(/\s*▶\s*$/i, '');
+  
+  // Hapus text "by Artist" di akhir jika ada
+  clean = clean.replace(/\s+by\s+.+$/i, '');
   
   // Bersihkan spasi berlebih
   clean = clean.replace(/\s{2,}/g, ' ').trim();
@@ -123,7 +128,7 @@ function parseSongFromEmbed(embed) {
     let cleanDesc = cleanSongText(embed.description);
     
     // Skip kalau description cuma progress bar atau terlalu pendek/panjang
-    if (cleanDesc.match(/^[\s\d:\/\-\.▶⏸ progress\[\]]+$/i) || cleanDesc.length < 3 || cleanDesc.length > 150) {
+    if (cleanDesc.match(/^[\s\d:\/\-\.▶⏸ progress\[\]]+$/i) || cleanDesc.length < 3 || cleanDesc.length > 200) {
       console.log('[NP] desc skipped: "' + cleanDesc.substring(0, 50) + '"');
     } else {
       title = cleanDesc;

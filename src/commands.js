@@ -92,73 +92,50 @@ function parseSongFromEmbed(embed) {
       if (!cleanValue) continue;
       
       // Skip fields yang bukan title/artist
-      if (name.match(/duration|queue|position|source|platform|requested|added by|up next|album|repeat|shuffle|loop|volume|bitrate|connected|status|paused|stopped|lyrics|help|command|prefix|language|settings|config/)) {
+      if (name.match(/duration|queue|position|source|platform|requested|added by|up next|album|repeat|shuffle|loop|volume|bitrate|connected|status|paused|stopped|lyrics|help|command|prefix|language|settings|config|length|progress|next|repeat|mode|playback/)) {
         continue;
       }
       
-      // Artist/Author/By/Singer
-      if (name.match(/artist|by$|author|singer|directed by|composer|producer|featuring|feat/)) {
+      // Artist/Author/By/Singer/Composer/Producer
+      if (name.match(/artist|^by$|author|singer|composer|producer|featuring|feat/)) {
         if (!artist) artist = cleanValue;
         console.log('[NP] field artist: "' + name + '" = "' + cleanValue + '"');
       }
-      // Title/Track/Song
-      else if (name.match(/title|track|song|name|now playing/)) {
+      // Title/Track/Song/Name
+      else if (name.match(/title|track|song|^name$|now playing|currently/)) {
         if (!title) title = cleanValue;
         console.log('[NP] field title: "' + name + '" = "' + cleanValue + '"');
       }
-      // Field lain - coba deteksi
-      else if (!title && !cleanValue.match(/^\d/)) {
-        // Jika value seperti "Artist - Title" atau "Title - Artist"
-        const dashMatch = cleanValue.match(/^(.+?)\s*[-—–]\s*(.+)$/);
-        if (dashMatch) {
-          title = dashMatch[1].trim();
-          artist = dashMatch[2].trim();
-        } else {
-          title = cleanValue;
-        }
-        console.log('[NP] field other: "' + name + '" = "' + cleanValue + '"');
-      }
     }
   }
 
-  // 2. Cek description (banyak bot taruh title di sini)
+  // 2. Cek footer untuk artist (FredBoat: "Source: Artist")
+  if (!artist && embed.footer && embed.footer.text) {
+    const footerMatch = embed.footer.text.match(/(?:source|artist|by|from)[:\s]*(.+)/i);
+    if (footerMatch) {
+      artist = cleanSongText(footerMatch[1]);
+      console.log('[NP] footer artist: "' + embed.footer.text + '" -> "' + artist + '"');
+    }
+  }
+
+  // 3. Cek description (Jockie: [Title](URL))
   if (!title && embed.description) {
     let cleanDesc = cleanSongText(embed.description);
     
-    // Skip kalau description cuma progress bar, timestamp, atau terlalu pendek
-    if (cleanDesc.match(/^[\s\d:\/\-\.▶⏸ progress\[\]]+$/i) || cleanDesc.length < 3 || cleanDesc.length > 200) {
+    // Skip kalau description cuma progress bar atau terlalu pendek/panjang
+    if (cleanDesc.match(/^[\s\d:\/\-\.▶⏸ progress\[\]]+$/i) || cleanDesc.length < 3 || cleanDesc.length > 150) {
       console.log('[NP] desc skipped: "' + cleanDesc.substring(0, 50) + '"');
     } else {
-      // Coba format "Title - Artist"
-      const dashMatch = cleanDesc.match(/^(.+?)\s*[-—–]\s*(.+)$/);
-      if (dashMatch) {
-        const part1 = dashMatch[1].trim();
-        const part2 = dashMatch[2].trim();
-        // Jika artist sudah diketahui, cek apakah salah satu cocok
-        if (artist && part1.toLowerCase().includes(artist.toLowerCase())) {
-          title = part2;
-        } else if (artist && part2.toLowerCase().includes(artist.toLowerCase())) {
-          title = part1;
-        } else {
-          title = part1;
-          artist = part2;
-        }
-      } else {
-        // Tanpa dash - ambil baris pertama yang cukup panjang
-        const lines = cleanDesc.split('\n').filter(l => l.trim().length > 2);
-        if (lines.length > 0) {
-          title = lines[0].trim();
-        }
-      }
-      console.log('[NP] parseSong desc: "' + cleanDesc.substring(0, 80) + '" -> title="' + title + '", artist="' + artist + '"');
+      title = cleanDesc;
+      console.log('[NP] parseSong desc: "' + cleanDesc.substring(0, 80) + '"');
     }
   }
 
-  // 3. Cek embed title
+  // 4. Cek embed title (FredBoat: Title di embed title)
   if (!title && embed.title) {
     let cleanTitle = cleanSongText(embed.title);
-    // Skip kalau title cuma label
-    if (cleanTitle.match(/^(now playing|playing|listening|queue|playlist|search|up next)$/i)) {
+    // Skip label umum
+    if (cleanTitle.match(/^(now playing|playing|listening|queue|playlist|search|up next|currently playing)$/i)) {
       console.log('[NP] title skipped label: "' + cleanTitle + '"');
     } else {
       title = cleanTitle;
@@ -166,7 +143,7 @@ function parseSongFromEmbed(embed) {
     console.log('[NP] parseSong title: "' + embed.title + '" -> "' + title + '"');
   }
 
-  // 4. Fallback: title dengan thumbnail
+  // 5. Fallback: title dengan thumbnail
   if (!title && embed.thumbnail && embed.title) {
     title = cleanSongText(embed.title);
     console.log('[NP] parseSong fallback thumbnail: "' + title + '"');
@@ -183,30 +160,26 @@ function parseSongFromEmbed(embed) {
   // Jika title kosong setelah cleanup
   if (!title || title.length < 2) return null;
   
-  // Format: "Title by Artist" di akhir
-  const byMatch = title.match(/^(.+?)\s+by\s+(.+)$/i);
-  if (byMatch && !artist) {
-    title = byMatch[1].trim();
-    artist = byMatch[2].trim();
-  }
-  
   // Bersihkan artist dari karakter yang tidak perlu
   if (artist) {
     artist = artist.replace(/[()[\]]/g, '').trim();
-    // Jika artist terlalu panjang atau mengandung URL, skip
     if (artist.length > 60 || artist.match(/https?:|\/\//)) {
       artist = '';
     }
   }
   
-  // Bersihkan title dari karakter yang tidak perlu
+  // Bersihkan title
   title = title.replace(/[()[\]]/g, '').trim();
   if (title.length > 100 || title.match(/https?:|\/\//)) {
-    // Title terlalu panjang atau mengandung URL, coba ambil bagian pertama
     title = title.split(/\s*[-—–|]\s*/)[0].trim();
   }
   
-  if (artist && !title.toLowerCase().includes(artist.toLowerCase())) {
+  // Jika artist sudah ada di title, jangan gabung
+  if (artist && title.toLowerCase().includes(artist.toLowerCase())) {
+    return title;
+  }
+  
+  if (artist) {
     return title + ' - ' + artist;
   }
   return title;

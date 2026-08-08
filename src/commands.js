@@ -61,14 +61,20 @@ function cleanSongText(text) {
   // Hapus prefix umum
   clean = clean.replace(/^(?:now playing|playing|listening|started playing|currently playing)[:\s]*/i, '');
   
+  // Hapus isi dalam kurung
+  clean = clean.replace(/\s*\([^)]*\)\s*/g, ' ');
+  clean = clean.replace(/\s*\[[^\]]*\]\s*/g, ' ');
+  
   // Hapus suffix/extra info
   clean = clean.replace(/\s*[-—–|]\s*(?:requested by|added by|duration|album|queue|position|source|platform|spotify|youtube|soundcloud|duration|requested by|up next).*/i, '');
-  clean = clean.replace(/\s*\(\d+:\d+\).*$/i, ''); // (3:45) at end
   clean = clean.replace(/\s*\d+:\d+\s*$/i, '');   // 3:45 at end
   clean = clean.replace(/\s*🎵\s*$/i, '');         // trailing emoji
   clean = clean.replace(/\s*🎶\s*$/i, '');
   
-  return clean.trim();
+  // Bersihkan spasi berlebih
+  clean = clean.replace(/\s{2,}/g, ' ').trim();
+  
+  return clean;
 }
 
 function parseSongFromEmbed(embed) {

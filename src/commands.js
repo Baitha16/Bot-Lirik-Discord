@@ -59,7 +59,7 @@ function cleanSongText(text) {
   let clean = cleanMarkdown(text);
   
   // Hapus prefix umum (case insensitive)
-  clean = clean.replace(/^(?:now playing|playing|listening|started playing|currently playing)[:\s]*/i, '');
+  clean = clean.replace(/^(?:now playing|playing|listening|started playing|currently playing|song|track|music)[:\s]*/i, '');
   
   // Hapus isi dalam kurung [text] dan (text)
   clean = clean.replace(/\s*\([^)]*\)\s*/g, ' ');

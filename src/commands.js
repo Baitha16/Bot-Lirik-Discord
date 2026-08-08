@@ -46,9 +46,29 @@ function cleanMarkdown(text) {
   return text
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // [text](url) -> text
     .replace(/<[^>]+>/g, '')                      // <@123> -> remove
+    .replace(/https?:\/\/\S+/g, '')               // URLs
     .replace(/🎵|🎶|▶|⏸|🔴|🟢|🎧|🎶/g, '')     // emoji
     .replace(/^#+\s*/, '')                        // ## heading
+    .replace(/\*\*/g, '')                         // bold **text**
+    .replace(/`/g, '')                            // code
     .trim();
+}
+
+function cleanSongText(text) {
+  if (!text) return '';
+  let clean = cleanMarkdown(text);
+  
+  // Hapus prefix umum
+  clean = clean.replace(/^(?:now playing|playing|listening|started playing|currently playing)[:\s]*/i, '');
+  
+  // Hapus suffix/extra info
+  clean = clean.replace(/\s*[-—–|]\s*(?:requested by|added by|duration|album|queue|position|source|platform|spotify|youtube|soundcloud|duration|requested by|up next).*/i, '');
+  clean = clean.replace(/\s*\(\d+:\d+\).*$/i, ''); // (3:45) at end
+  clean = clean.replace(/\s*\d+:\d+\s*$/i, '');   // 3:45 at end
+  clean = clean.replace(/\s*🎵\s*$/i, '');         // trailing emoji
+  clean = clean.replace(/\s*🎶\s*$/i, '');
+  
+  return clean.trim();
 }
 
 function parseSongFromEmbed(embed) {
@@ -60,36 +80,57 @@ function parseSongFromEmbed(embed) {
   if (embed.fields) {
     for (const field of embed.fields) {
       const name = (field.name || '').toLowerCase();
-      const cleanValue = cleanMarkdown(field.value);
+      const rawValue = field.value || '';
+      const cleanValue = cleanSongText(rawValue);
       
-      // Artist/Author/By/Singer/Directed by
-      if (name.includes('artist') || name === 'by' || name.includes('author') || name.includes('singer') || name.includes('directed by')) {
-        if (!artist) artist = cleanValue;
-        console.log('[NP] parseSong field artist: "' + name + '" = "' + cleanValue + '"');
+      if (!cleanValue) continue;
+      
+      // Skip fields yang bukan title/artist
+      if (name.match(/duration|queue|position|source|platform|requested|added by|up next|album|repeat|shuffle|loop|volume|bitrate|connected|status|paused|stopped|lyrics|help|command|prefix|language|settings|config/)) {
+        continue;
       }
-      // Title/Track/Song/Now Playing
-      if (name.includes('title') || name.includes('track') || name.includes('song') || name.includes('now playing')) {
+      
+      // Artist/Author/By/Singer
+      if (name.match(/artist|by$|author|singer|directed by|composer|producer|featuring|feat/)) {
+        if (!artist) artist = cleanValue;
+        console.log('[NP] field artist: "' + name + '" = "' + cleanValue + '"');
+      }
+      // Title/Track/Song
+      else if (name.match(/title|track|song|name|now playing/)) {
         if (!title) title = cleanValue;
-        console.log('[NP] parseSong field title: "' + name + '" = "' + cleanValue + '"');
+        console.log('[NP] field title: "' + name + '" = "' + cleanValue + '"');
+      }
+      // Field lain - coba deteksi
+      else if (!title && !cleanValue.match(/^\d/)) {
+        // Jika value seperti "Artist - Title" atau "Title - Artist"
+        const dashMatch = cleanValue.match(/^(.+?)\s*[-—–]\s*(.+)$/);
+        if (dashMatch) {
+          title = dashMatch[1].trim();
+          artist = dashMatch[2].trim();
+        } else {
+          title = cleanValue;
+        }
+        console.log('[NP] field other: "' + name + '" = "' + cleanValue + '"');
       }
     }
   }
 
   // 2. Cek description (banyak bot taruh title di sini)
   if (!title && embed.description) {
-    const cleanDesc = cleanMarkdown(embed.description);
+    let cleanDesc = cleanSongText(embed.description);
     
-    // Skip kalau description cuma progress bar atau info
-    if (!cleanDesc.match(/^[\s\d:\/\-\.▶⏸ progress]+$/i) && cleanDesc.length < 200) {
+    // Skip kalau description cuma progress bar, timestamp, atau terlalu pendek
+    if (cleanDesc.match(/^[\s\d:\/\-\.▶⏸ progress\[\]]+$/i) || cleanDesc.length < 3 || cleanDesc.length > 200) {
+      console.log('[NP] desc skipped: "' + cleanDesc.substring(0, 50) + '"');
+    } else {
       // Coba format "Title - Artist"
       const dashMatch = cleanDesc.match(/^(.+?)\s*[-—–]\s*(.+)$/);
       if (dashMatch) {
-        // Cek apakah salah satunya sudah ada di artist
         const part1 = dashMatch[1].trim();
         const part2 = dashMatch[2].trim();
+        // Jika artist sudah diketahui, cek apakah salah satu cocok
         if (artist && part1.toLowerCase().includes(artist.toLowerCase())) {
           title = part2;
-          artist = part1.replace(new RegExp(artist, 'gi'), '').replace(/^[-—–\s]+/, '').trim();
         } else if (artist && part2.toLowerCase().includes(artist.toLowerCase())) {
           title = part1;
         } else {
@@ -97,8 +138,8 @@ function parseSongFromEmbed(embed) {
           artist = part2;
         }
       } else {
-        // Tanpa dash, coba ambil baris pertama yang bukan mention/user
-        const lines = cleanDesc.split('\n').filter(l => l.trim() && !l.match(/^<@|^<https?:|^https?:|^https?:\/\//));
+        // Tanpa dash - ambil baris pertama yang cukup panjang
+        const lines = cleanDesc.split('\n').filter(l => l.trim().length > 2);
         if (lines.length > 0) {
           title = lines[0].trim();
         }
@@ -109,24 +150,19 @@ function parseSongFromEmbed(embed) {
 
   // 3. Cek embed title
   if (!title && embed.title) {
-    const cleanTitle = cleanMarkdown(embed.title);
-    // Skip kalau title cuma "Now Playing", "Queue", "Playlist", dll
-    const skipWords = ['queue', 'playlist', 'search', 'now playing', 'playing', 'listening'];
-    if (!skipWords.some(w => cleanTitle.toLowerCase() === w)) {
-      // Coba format "Prefix: Song Title" atau "Started playing Song Title"
-      const prefixMatch = cleanTitle.match(/^(?:now playing|playing|listening|started playing|currently playing|🎵|🎶|🎧)[:\s]*(.+)/i);
-      if (prefixMatch) {
-        title = prefixMatch[1].trim();
-      } else {
-        title = cleanTitle;
-      }
+    let cleanTitle = cleanSongText(embed.title);
+    // Skip kalau title cuma label
+    if (cleanTitle.match(/^(now playing|playing|listening|queue|playlist|search|up next)$/i)) {
+      console.log('[NP] title skipped label: "' + cleanTitle + '"');
+    } else {
+      title = cleanTitle;
     }
     console.log('[NP] parseSong title: "' + embed.title + '" -> "' + title + '"');
   }
 
   // 4. Fallback: title dengan thumbnail
   if (!title && embed.thumbnail && embed.title) {
-    title = cleanMarkdown(embed.title);
+    title = cleanSongText(embed.title);
     console.log('[NP] parseSong fallback thumbnail: "' + title + '"');
   }
 
@@ -135,22 +171,36 @@ function parseSongFromEmbed(embed) {
     return null;
   }
   
-  // Bersihkan title
+  // Final cleanup
   title = title.replace(/🎵|🎶|▶|⏸|🔴|🟢|🎧|🎶/g, '').trim();
   
-  // Cek apakah title mengandung "by Artist" di akhir
+  // Jika title kosong setelah cleanup
+  if (!title || title.length < 2) return null;
+  
+  // Format: "Title by Artist" di akhir
   const byMatch = title.match(/^(.+?)\s+by\s+(.+)$/i);
   if (byMatch && !artist) {
     title = byMatch[1].trim();
     artist = byMatch[2].trim();
   }
   
-  // Jika artist sudah ada di title, jangan gabung lagi
-  if (artist && title.toLowerCase().includes(artist.toLowerCase())) {
-    return title;
+  // Bersihkan artist dari karakter yang tidak perlu
+  if (artist) {
+    artist = artist.replace(/[()[\]]/g, '').trim();
+    // Jika artist terlalu panjang atau mengandung URL, skip
+    if (artist.length > 60 || artist.match(/https?:|\/\//)) {
+      artist = '';
+    }
   }
   
-  if (artist) {
+  // Bersihkan title dari karakter yang tidak perlu
+  title = title.replace(/[()[\]]/g, '').trim();
+  if (title.length > 100 || title.match(/https?:|\/\//)) {
+    // Title terlalu panjang atau mengandung URL, coba ambil bagian pertama
+    title = title.split(/\s*[-—–|]\s*/)[0].trim();
+  }
+  
+  if (artist && !title.toLowerCase().includes(artist.toLowerCase())) {
     return title + ' - ' + artist;
   }
   return title;

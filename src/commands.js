@@ -41,6 +41,16 @@ function isMusicBot(userId, username) {
   return false;
 }
 
+function cleanMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // [text](url) -> text
+    .replace(/<[^>]+>/g, '')                      // <@123> -> remove
+    .replace(/🎵|🎶|▶|⏸|🔴|🟢|🎧/g, '')         // emoji
+    .replace(/^#+\s*/, '')                        // ## heading
+    .trim();
+}
+
 function parseSongFromEmbed(embed) {
   if (!embed) return null;
   let title = '';
@@ -48,13 +58,13 @@ function parseSongFromEmbed(embed) {
 
   // 1. Cek title embed
   if (embed.title) {
+    const cleanTitle = cleanMarkdown(embed.title);
     // Coba hapus prefix "now playing", "playing", "listening", "currently playing"
-    const match = embed.title.match(/(?:now playing|playing|listening|currently playing)[:\s]*(.+)/i);
+    const match = cleanTitle.match(/(?:now playing|playing|listening|currently playing)[:\s]*(.+)/i);
     if (match) {
       title = match[1].trim();
-    } else if (!embed.title.toLowerCase().includes('queue') && !embed.title.toLowerCase().includes('playlist') && !embed.title.toLowerCase().includes('search')) {
-      // Gunakan title langsung jika bukan queue/playlist/search
-      title = embed.title.trim();
+    } else if (!cleanTitle.toLowerCase().includes('queue') && !cleanTitle.toLowerCase().includes('playlist') && !cleanTitle.toLowerCase().includes('search')) {
+      title = cleanTitle;
     }
     console.log('[NP] parseSong title: "' + embed.title + '" -> "' + title + '"');
   }
@@ -63,9 +73,7 @@ function parseSongFromEmbed(embed) {
   if (embed.fields) {
     for (const field of embed.fields) {
       const name = (field.name || '').toLowerCase();
-      const value = field.value || '';
-      // Bersihkan markdown link [text](url) -> text
-      const cleanValue = value.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/<[^>]+>/g, '').trim();
+      const cleanValue = cleanMarkdown(field.value);
       
       if (name.includes('title') || name.includes('track') || name.includes('song') || name.includes('now playing')) {
         if (!title) title = cleanValue;
@@ -80,17 +88,18 @@ function parseSongFromEmbed(embed) {
 
   // 3. Cek description
   if (!title && embed.description) {
-    const match = embed.description.match(/^(.+?)(?:\s*[-—–]\s*(.+))?$/m);
+    const cleanDesc = cleanMarkdown(embed.description);
+    const match = cleanDesc.match(/^(.+?)(?:\s*[-—–]\s*(.+))?$/m);
     if (match) {
       title = match[1].trim();
       if (match[2]) artist = match[2].trim();
     }
-    console.log('[NP] parseSong desc: "' + (embed.description || '').substring(0, 100) + '" -> title="' + title + '"');
+    console.log('[NP] parseSong desc: "' + cleanDesc.substring(0, 100) + '" -> title="' + title + '"');
   }
 
   // 4. Fallback: gunakan title jika ada thumbnail
   if (!title && embed.thumbnail && embed.title && !embed.title.toLowerCase().includes('queue')) {
-    title = embed.title;
+    title = cleanMarkdown(embed.title);
     console.log('[NP] parseSong fallback thumbnail: "' + title + '"');
   }
 

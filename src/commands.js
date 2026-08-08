@@ -46,7 +46,7 @@ function cleanMarkdown(text) {
   return text
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // [text](url) -> text
     .replace(/<[^>]+>/g, '')                      // <@123> -> remove
-    .replace(/🎵|🎶|▶|⏸|🔴|🟢|🎧/g, '')         // emoji
+    .replace(/🎵|🎶|▶|⏸|🔴|🟢|🎧|🎶/g, '')     // emoji
     .replace(/^#+\s*/, '')                        // ## heading
     .trim();
 }
@@ -56,49 +56,76 @@ function parseSongFromEmbed(embed) {
   let title = '';
   let artist = '';
 
-  // 1. Cek title embed
-  if (embed.title) {
-    const cleanTitle = cleanMarkdown(embed.title);
-    // Coba hapus prefix "now playing", "playing", "listening", "currently playing"
-    const match = cleanTitle.match(/(?:now playing|playing|listening|currently playing)[:\s]*(.+)/i);
-    if (match) {
-      title = match[1].trim();
-    } else if (!cleanTitle.toLowerCase().includes('queue') && !cleanTitle.toLowerCase().includes('playlist') && !cleanTitle.toLowerCase().includes('search')) {
-      title = cleanTitle;
-    }
-    console.log('[NP] parseSong title: "' + embed.title + '" -> "' + title + '"');
-  }
-
-  // 2. Cek fields
+  // 1. Cek fields dulu (paling reliable)
   if (embed.fields) {
     for (const field of embed.fields) {
       const name = (field.name || '').toLowerCase();
       const cleanValue = cleanMarkdown(field.value);
       
+      // Artist/Author/By/Singer/Directed by
+      if (name.includes('artist') || name === 'by' || name.includes('author') || name.includes('singer') || name.includes('directed by')) {
+        if (!artist) artist = cleanValue;
+        console.log('[NP] parseSong field artist: "' + name + '" = "' + cleanValue + '"');
+      }
+      // Title/Track/Song/Now Playing
       if (name.includes('title') || name.includes('track') || name.includes('song') || name.includes('now playing')) {
         if (!title) title = cleanValue;
         console.log('[NP] parseSong field title: "' + name + '" = "' + cleanValue + '"');
       }
-      if (name.includes('artist') || name.includes('by') || name.includes('author') || name.includes('singer')) {
-        artist = cleanValue;
-        console.log('[NP] parseSong field artist: "' + name + '" = "' + cleanValue + '"');
-      }
     }
   }
 
-  // 3. Cek description
+  // 2. Cek description (banyak bot taruh title di sini)
   if (!title && embed.description) {
     const cleanDesc = cleanMarkdown(embed.description);
-    const match = cleanDesc.match(/^(.+?)(?:\s*[-—–]\s*(.+))?$/m);
-    if (match) {
-      title = match[1].trim();
-      if (match[2]) artist = match[2].trim();
+    
+    // Skip kalau description cuma progress bar atau info
+    if (!cleanDesc.match(/^[\s\d:\/\-\.▶⏸ progress]+$/i) && cleanDesc.length < 200) {
+      // Coba format "Title - Artist"
+      const dashMatch = cleanDesc.match(/^(.+?)\s*[-—–]\s*(.+)$/);
+      if (dashMatch) {
+        // Cek apakah salah satunya sudah ada di artist
+        const part1 = dashMatch[1].trim();
+        const part2 = dashMatch[2].trim();
+        if (artist && part1.toLowerCase().includes(artist.toLowerCase())) {
+          title = part2;
+          artist = part1.replace(new RegExp(artist, 'gi'), '').replace(/^[-—–\s]+/, '').trim();
+        } else if (artist && part2.toLowerCase().includes(artist.toLowerCase())) {
+          title = part1;
+        } else {
+          title = part1;
+          artist = part2;
+        }
+      } else {
+        // Tanpa dash, coba ambil baris pertama yang bukan mention/user
+        const lines = cleanDesc.split('\n').filter(l => l.trim() && !l.match(/^<@|^<https?:|^https?:|^https?:\/\//));
+        if (lines.length > 0) {
+          title = lines[0].trim();
+        }
+      }
+      console.log('[NP] parseSong desc: "' + cleanDesc.substring(0, 80) + '" -> title="' + title + '", artist="' + artist + '"');
     }
-    console.log('[NP] parseSong desc: "' + cleanDesc.substring(0, 100) + '" -> title="' + title + '"');
   }
 
-  // 4. Fallback: gunakan title jika ada thumbnail
-  if (!title && embed.thumbnail && embed.title && !embed.title.toLowerCase().includes('queue')) {
+  // 3. Cek embed title
+  if (!title && embed.title) {
+    const cleanTitle = cleanMarkdown(embed.title);
+    // Skip kalau title cuma "Now Playing", "Queue", "Playlist", dll
+    const skipWords = ['queue', 'playlist', 'search', 'now playing', 'playing', 'listening'];
+    if (!skipWords.some(w => cleanTitle.toLowerCase() === w)) {
+      // Coba format "Prefix: Song Title" atau "Started playing Song Title"
+      const prefixMatch = cleanTitle.match(/^(?:now playing|playing|listening|started playing|currently playing|🎵|🎶|🎧)[:\s]*(.+)/i);
+      if (prefixMatch) {
+        title = prefixMatch[1].trim();
+      } else {
+        title = cleanTitle;
+      }
+    }
+    console.log('[NP] parseSong title: "' + embed.title + '" -> "' + title + '"');
+  }
+
+  // 4. Fallback: title dengan thumbnail
+  if (!title && embed.thumbnail && embed.title) {
     title = cleanMarkdown(embed.title);
     console.log('[NP] parseSong fallback thumbnail: "' + title + '"');
   }
@@ -108,16 +135,55 @@ function parseSongFromEmbed(embed) {
     return null;
   }
   
-  // Bersihkan title dari karakter yang tidak perlu
-  title = title.replace(/🎵|🎶|▶|⏸|🔴|🟢|🎧|🔴|🟢/g, '').trim();
+  // Bersihkan title
+  title = title.replace(/🎵|🎶|▶|⏸|🔴|🟢|🎧|🎶/g, '').trim();
   
-  if (artist && !title.toLowerCase().includes(artist.toLowerCase())) {
+  // Cek apakah title mengandung "by Artist" di akhir
+  const byMatch = title.match(/^(.+?)\s+by\s+(.+)$/i);
+  if (byMatch && !artist) {
+    title = byMatch[1].trim();
+    artist = byMatch[2].trim();
+  }
+  
+  // Jika artist sudah ada di title, jangan gabung lagi
+  if (artist && title.toLowerCase().includes(artist.toLowerCase())) {
+    return title;
+  }
+  
+  if (artist) {
     return title + ' - ' + artist;
   }
   return title;
 }
 
 async function findNowPlaying(interaction) {
+  // 1. Cek apakah user reply ke pesan
+  const repliedTo = interaction.data && interaction.data.resolved && interaction.data.resolved.messages;
+  if (repliedTo) {
+    const msgIds = Object.keys(repliedTo);
+    for (const msgId of msgIds) {
+      const msg = repliedTo[msgId];
+      if (msg.embeds && msg.embeds.length > 0) {
+        for (const embed of msg.embeds) {
+          const songQuery = parseSongFromEmbed(embed);
+          if (songQuery) {
+            console.log('[NP] Lagu dari reply: ' + songQuery);
+            return songQuery;
+          }
+        }
+      }
+      // Cek content
+      if (msg.content) {
+        const match = msg.content.match(/(?:now playing|playing|listening|currently playing|started playing)[:\s]*(.+)/i);
+        if (match) {
+          console.log('[NP] Lagu dari reply content: ' + match[1].trim());
+          return match[1].trim();
+        }
+      }
+    }
+  }
+
+  // 2. Scan channel messages
   const channelId = interaction.channel_id;
   let messages;
   try {
@@ -132,13 +198,6 @@ async function findNowPlaying(interaction) {
   }
 
   console.log('[NP] Ditemukan ' + messages.length + ' pesan di channel ' + channelId);
-
-  // Log semua bot yang ditemukan untuk debug
-  const botMessages = messages.filter(m => m.author && m.author.bot);
-  console.log('[NP] Total bot messages: ' + botMessages.length);
-  for (const bm of botMessages) {
-    console.log('[NP] Bot: ' + bm.author.username + ' (ID: ' + bm.author.id + ', embeds: ' + (bm.embeds ? bm.embeds.length : 0) + ')');
-  }
 
   // Cari dari message terbaru ke lama
   for (const msg of messages) {
@@ -166,7 +225,7 @@ async function findNowPlaying(interaction) {
     
     // Cek content (pesan teks)
     if (msg.content) {
-      const match = msg.content.match(/(?:now playing|playing|listening| currently)[:\s]*(.+)/i);
+      const match = msg.content.match(/(?:now playing|playing|listening|currently playing|started playing)[:\s]*(.+)/i);
       if (match) {
         console.log('[NP] ✓ Lagu dari content: ' + match[1].trim());
         return match[1].trim();
@@ -195,12 +254,12 @@ const commandsJSON = [
   },
   {
     name: 'np',
-    description: 'Ambil lirik dari lagu yang sedang diputar di music bot',
+    description: 'Ambil lirik lagu yang sedang diputar (bisa reply embed)',
     type: 1,
   },
   {
     name: 'nowplaying',
-    description: 'Ambil lirik dari lagu yang sedang diputar di music bot',
+    description: 'Ambil lirik lagu yang sedang diputar (bisa reply embed)',
     type: 1,
   },
   {
@@ -430,7 +489,7 @@ const commandList = [
           fields: [
             { name: '/lirik <judul>', value: 'Cari lirik lagu. Contoh: `/lirik Judul Lagu` atau `/lirik Judul Lagu - Artist`', inline: false },
             { name: '/lirik nowplaying', value: 'Ambil lirik dari lagu yang sedang diputar (fallback)', inline: false },
-            { name: '/np', value: 'Ambil lirik dari lagu yang sedang diputar di music bot', inline: false },
+            { name: '/np', value: 'Ambil lirik lagu yang sedang diputar (bisa reply embed)', inline: false },
             { name: '/nowplaying', value: 'Sama seperti /np', inline: false },
             { name: '/artist <nama>', value: 'Cari info artis & lagu terpopulernya. Contoh: `/artist Taylor Swift`', inline: false },
             { name: '/ping', value: 'Cek latensi bot ke API Discord', inline: false },

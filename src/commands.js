@@ -275,14 +275,14 @@ async function findNowPlaying(interaction) {
 const commandsJSON = [
   {
     name: 'lirik',
-    description: 'Cari lirik lagu',
+    description: 'Cari lirik lagu (bisa reply pesan)',
     type: 1,
     options: [
       {
         name: 'judul',
-        description: 'Judul lagu. Contoh: "Judul Lagu" atau "Judul Lagu - Artist"',
+        description: 'Judul lagu. Contoh: "Judul Lagu" atau "Judul Lagu - Artist". Kosongkan jika reply pesan.',
         type: 3,
-        required: true,
+        required: false,
       },
     ],
   },

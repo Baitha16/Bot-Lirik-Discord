@@ -333,8 +333,67 @@ const commandList = [
 
       console.log('[CMD] /lirik query: "' + query + '"');
 
+      // Cek apakah user reply ke pesan (bisa dari music bot)
+      const repliedTo = interaction.data && interaction.data.resolved && interaction.data.resolved.messages;
+      if (repliedTo) {
+        const msgIds = Object.keys(repliedTo);
+        for (const msgId of msgIds) {
+          const msg = repliedTo[msgId];
+          // Cek embeds
+          if (msg.embeds && msg.embeds.length > 0) {
+            for (const embed of msg.embeds) {
+              const songQuery = parseSongFromEmbed(embed);
+              if (songQuery) {
+                console.log('[CMD] /lirik: reply embed song: ' + songQuery);
+                const result = await searchLyrics(songQuery);
+                if (result) {
+                  const truncated = result.lyrics.length > 4000
+                    ? result.lyrics.slice(0, 4000) + '\n\n... (lirik dipotong)'
+                    : result.lyrics;
+                  return {
+                    embeds: [buildEmbed({
+                      title: result.title,
+                      author: result.artist,
+                      description: truncated,
+                      thumbnail: result.thumbnail,
+                      url: result.url,
+                      footer: 'Diminta oleh ' + getUserName(interaction) + ' | Sumber: ' + result.source,
+                    })],
+                  };
+                }
+              }
+            }
+          }
+          // Cek content
+          if (msg.content) {
+            const match = msg.content.match(/(?:now playing|playing|listening|currently playing|started playing)[:\s]*(.+)/i);
+            if (match) {
+              const songQuery = match[1].trim();
+              console.log('[CMD] /lirik: reply content song: ' + songQuery);
+              const result = await searchLyrics(songQuery);
+              if (result) {
+                const truncated = result.lyrics.length > 4000
+                  ? result.lyrics.slice(0, 4000) + '\n\n... (lirik dipotong)'
+                  : result.lyrics;
+                return {
+                  embeds: [buildEmbed({
+                    title: result.title,
+                    author: result.artist,
+                    description: truncated,
+                    thumbnail: result.thumbnail,
+                    url: result.url,
+                    footer: 'Diminta oleh ' + getUserName(interaction) + ' | Sumber: ' + result.source,
+                  })],
+                };
+              }
+            }
+          }
+        }
+        return { content: 'Tidak ditemukan lagu dari pesan yang di-reply. Coba `/lirik Judul Lagu` langsung.', flags: 64 };
+      }
+
       if (!query.trim()) {
-        return { content: 'Judul lagu harus diisi.', flags: 64 };
+        return { content: 'Judul lagu harus diisi. Atau reply embed music bot dengan `/lirik`.', flags: 64 };
       }
 
       // Fallback: handle nowplaying/np dari /lirik juga

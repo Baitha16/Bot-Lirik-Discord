@@ -5,7 +5,9 @@ Bot Discord untuk mencari lirik lagu dengan **4 sumber lirik** dan auto-detect l
 ## Fitur
 
 - `/lirik <judul>` - Cari lirik lagu
+- `/lirik` (reply embed music bot) - Auto-detect lagu dari embed yang di-reply
 - `/np` atau `/nowplaying` - Auto-detect lagu dari music bot (Jockie, Cloudy, Hydra, dll)
+- `/np` atau `/nowplaying` (reply embed music bot) - Ambil lirik dari embed yang di-reply
 - `/lirik nowplaying` - Fallback untuk ambil lirik dari music bot
 - `/artist <nama>` - Info artis & lagu terpopulernya
 - `/ping`, `/status`, `/help`
@@ -20,10 +22,11 @@ Bot Discord untuk mencari lirik lagu dengan **4 sumber lirik** dan auto-detect l
 |---------|-----------|
 | `/lirik <judul>` | Cari lirik lagu |
 | `/lirik <judul> - <artis>` | Cari lirik spesifik |
+| `/lirik` (reply embed) | Ambil lirik dari embed music bot yang di-reply |
 | `/np` | Ambil lirik dari lagu yang sedang diputar di music bot |
 | `/nowplaying` | Sama seperti /np |
+| `/np` (reply embed) | Ambil lirik dari embed music bot yang di-reply |
 | `/lirik nowplaying` | Fallback untuk ambil lirik dari music bot |
-| `/lirik np` | Fallback untuk ambil lirik dari music bot |
 | `/artist <nama>` | Info artis & lagu terpopulernya |
 | `/ping` | Cek latensi bot ke API Discord |
 | `/status` | Info status bot & sumber lirik |
